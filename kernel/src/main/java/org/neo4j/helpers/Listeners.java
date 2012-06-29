@@ -23,6 +23,7 @@ package org.neo4j.helpers;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 /**
  * Helper class for dealing with listeners
@@ -57,14 +58,42 @@ public class Listeners
     {
         for( T listener : listeners )
         {
-            try
+            synchronized( listener )
             {
-                notification.notify( listener );
+                try
+                {
+                    notification.notify( listener );
+                }
+                catch( Throwable e )
+                {
+                    e.printStackTrace();
+                }
             }
-            catch( Exception e )
+        }
+    }
+
+    public static <T> void notifyListeners(Iterable<T> listeners, Executor executor, final Notification<T> notification)
+    {
+        for( final T listener : listeners )
+        {
+            executor.execute( new Runnable()
             {
-                // Ignore
-            }
+                @Override
+                public void run()
+                {
+                    synchronized( listener )
+                    {
+                        try
+                        {
+                            notification.notify( listener );
+                        }
+                        catch( Throwable e )
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            });
         }
     }
 }

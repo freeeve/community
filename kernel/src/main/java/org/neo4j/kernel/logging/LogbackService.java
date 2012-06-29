@@ -59,47 +59,50 @@ public class LogbackService
         throws Throwable
     {
         final String storeDir = config.get( InternalAbstractGraphDatabase.Configuration.store_dir );
-
-        File file = new File( storeDir ).getAbsoluteFile();
-        if (!file.exists())
-            file.mkdirs();
-
-        loggerContext = (LoggerContext) StaticLoggerBinder.getSingleton().getLoggerFactory();
-
-        // Neo4j specific log config
-        loggingLife.add( new LifecycleAdapter()
+        
+        if (storeDir != null)
         {
-            @Override
-            public void start()
-                throws Throwable
+            File file = new File( storeDir ).getAbsoluteFile();
+            if (!file.exists())
+                file.mkdirs();
+    
+            loggerContext = (LoggerContext) StaticLoggerBinder.getSingleton().getLoggerFactory();
+    
+            // Neo4j specific log config
+            loggingLife.add( new LifecycleAdapter()
             {
-                JoranConfigurator configurator = new JoranConfigurator();
-                configurator.setContext( loggerContext );
-                loggerContext.putProperty( "neo_store", storeDir );
-                loggerContext.putProperty( "remote_logging_enabled", config.get( GraphDatabaseSettings.remote_logging_enabled ).toString() );
-                loggerContext.putProperty( "remote_logging_host", config.get( GraphDatabaseSettings.remote_logging_host ) );
-                loggerContext.putProperty( "remote_logging_port", config.get( GraphDatabaseSettings.remote_logging_port ).toString() );
-                try
+                @Override
+                public void start()
+                    throws Throwable
                 {
-                    configurator.doConfigure( getClass().getResource( "/neo4j-logback.xml" ) );
+                    JoranConfigurator configurator = new JoranConfigurator();
+                    configurator.setContext( loggerContext );
+                    loggerContext.putProperty( "neo_store", storeDir );
+                    loggerContext.putProperty( "remote_logging_enabled", config.get( GraphDatabaseSettings.remote_logging_enabled ).toString() );
+                    loggerContext.putProperty( "remote_logging_host", config.get( GraphDatabaseSettings.remote_logging_host ) );
+                    loggerContext.putProperty( "remote_logging_port", config.get( GraphDatabaseSettings.remote_logging_port ).toString() );
+                    try
+                    {
+                        configurator.doConfigure( getClass().getResource( "/neo4j-logback.xml" ) );
+                    }
+                    catch( JoranException e )
+                    {
+                        throw new IllegalStateException("Failed to configure logging", e );
+                    }
                 }
-                catch( JoranException e )
+    
+                @Override
+                public void stop()
+                    throws Throwable
                 {
-                    throw new IllegalStateException("Failed to configure logging", e );
+                    loggerContext.getLogger( Loggers.NEO4J ).detachAndStopAllAppenders();
                 }
-            }
-
-            @Override
-            public void stop()
-                throws Throwable
-            {
-                loggerContext.getLogger( Loggers.NEO4J ).detachAndStopAllAppenders();
-            }
-        });
-        loggingLife.start();
-
-        restartOnChange = new RestartOnChange( "remote_logging_", loggingLife );
-        config.addConfigurationChangeListener( restartOnChange );
+            });
+            loggingLife.start();
+    
+            restartOnChange = new RestartOnChange( "remote_logging_", loggingLife );
+            config.addConfigurationChangeListener( restartOnChange );
+        }
     }
 
     @Override
@@ -107,7 +110,8 @@ public class LogbackService
         throws Throwable
     {
         loggingLife.shutdown();
-        config.removeConfigurationChangeListener( restartOnChange );
+        if (restartOnChange != null)
+            config.removeConfigurationChangeListener( restartOnChange );
     }
 
     @Override
