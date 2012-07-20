@@ -195,6 +195,12 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         {
             throw new ReadOnlyDbException();
         }
+
+        @Override
+        public int getEventIdentifier()
+        {
+            return 0;
+        }
     };
 
     public ReadOnlyGraphDatabaseProxy( GraphDatabaseAPI graphDb )

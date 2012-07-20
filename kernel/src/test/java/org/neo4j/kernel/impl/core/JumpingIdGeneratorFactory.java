@@ -64,7 +64,7 @@ public class JumpingIdGeneratorFactory implements IdGeneratorFactory
         return forTheRest;
     }
 
-    public void create( FileSystemAbstraction fs, String fileName )
+    public void create( FileSystemAbstraction fs, String fileName, long highId )
     {
     }
 

@@ -30,7 +30,7 @@ public class AnnotatedFieldHarvester {
 	/**
 	 * Find all static fields of a given type, annotated with some given
 	 * annotation.
-	 * @param settingsClass
+	 * @param clazz
 	 * @param type
 	 * @param annotation
 	 */
@@ -62,7 +62,7 @@ public class AnnotatedFieldHarvester {
 	
 	/**
 	 * Find all static fields of a given type.
-	 * @param settingsClass
+	 * @param clazz
 	 * @param type
 	 */
 	public <T> Iterable<Pair<Field, T>> findStatic(Class<?> clazz,

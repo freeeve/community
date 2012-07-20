@@ -46,7 +46,13 @@ import org.objectweb.jotm.TransactionResourceManager;
 public class JOTMTransactionManager extends AbstractTransactionManager
 {
 
-	public static class Provider extends TransactionManagerProvider
+    @Override
+    public int getEventIdentifier()
+    {
+        return 0;
+    }
+
+    public static class Provider extends TransactionManagerProvider
 	{
 		public Provider() {
 			super(NAME);

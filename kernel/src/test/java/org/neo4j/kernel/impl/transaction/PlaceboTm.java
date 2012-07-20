@@ -112,4 +112,10 @@ public class PlaceboTm extends AbstractTransactionManager
         throws Throwable
     {
     }
+
+    @Override
+    public int getEventIdentifier()
+    {
+        return 0;
+    }
 }

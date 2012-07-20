@@ -59,4 +59,6 @@ public abstract class AbstractTransactionManager implements TransactionManager, 
     {
         return ForceMode.forced;
     }
+
+    public abstract int getEventIdentifier();
 }

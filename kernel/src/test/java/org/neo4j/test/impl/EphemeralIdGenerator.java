@@ -50,7 +50,7 @@ public class EphemeralIdGenerator implements IdGenerator
         }
 
         @Override
-        public void create( FileSystemAbstraction fs, String fileName )
+        public void create( FileSystemAbstraction fs, String fileName, long highId )
         {
         }
 

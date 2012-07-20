@@ -330,7 +330,7 @@ public class StoreFactory
             throw new UnderlyingStorageException( "Unable to create store "
                     + fileName, e );
         }
-        idGeneratorFactory.create( fileSystemAbstraction, fileName + ".id" );
+        idGeneratorFactory.create( fileSystemAbstraction, fileName + ".id", 0 );
         // TODO highestIdInUse = 0 works now, but not when slave can create store files.
         IdGenerator idGenerator = idGeneratorFactory.open(fileSystemAbstraction, fileName + ".id", 1, idType, 0, false);
         idGenerator.nextId(); // reserv first for blockSize
@@ -367,7 +367,7 @@ public class StoreFactory
             throw new UnderlyingStorageException( "Unable to create store "
                     + fileName, e );
         }
-        idGeneratorFactory.create( fileSystemAbstraction, fileName + ".id" );
+        idGeneratorFactory.create( fileSystemAbstraction, fileName + ".id", 0 );
     }
 
     public String buildTypeDescriptorAndVersion( String typeDescriptor )

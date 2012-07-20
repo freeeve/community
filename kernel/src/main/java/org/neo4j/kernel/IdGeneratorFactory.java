@@ -26,7 +26,7 @@ public interface IdGeneratorFactory
 {
     IdGenerator open( FileSystemAbstraction fs, String fileName, int grabSize, IdType idType, long highestIdInUse, boolean startup );
 
-    void create( FileSystemAbstraction fs, String fileName );
+    void create( FileSystemAbstraction fs, String fileName, long highId );
 
     IdGenerator get( IdType idType );
 }

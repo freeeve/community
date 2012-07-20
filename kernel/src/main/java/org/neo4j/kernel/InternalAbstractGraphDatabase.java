@@ -89,6 +89,7 @@ import org.neo4j.kernel.impl.nioneo.xa.NioNeoDbPersistenceSource;
 import org.neo4j.kernel.impl.persistence.PersistenceManager;
 import org.neo4j.kernel.impl.persistence.PersistenceSource;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
+import org.neo4j.kernel.impl.transaction.LockManagerImpl;
 import org.neo4j.kernel.impl.transaction.LockManager;
 import org.neo4j.kernel.impl.transaction.LockType;
 import org.neo4j.kernel.impl.transaction.RagManager;
@@ -696,7 +697,7 @@ public abstract class InternalAbstractGraphDatabase
 
     protected LockManager createLockManager()
     {
-        return new LockManager(ragManager);
+        return new LockManagerImpl(ragManager);
     }
 
     protected Logging createStringLogger()
@@ -1256,7 +1257,7 @@ public abstract class InternalAbstractGraphDatabase
             {
                 return (T) txManager;
             }
-            else if( LockManager.class.isAssignableFrom( type ) )
+            else if( LockManagerImpl.class.isAssignableFrom( type ) )
             {
                 return (T) lockManager;
             }

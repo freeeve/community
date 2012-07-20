@@ -801,6 +801,7 @@ public class TxManager extends AbstractTransactionManager
      * @return The current transaction's event identifier or -1 if no
      *         transaction is currently running.
      */
+    @Override
     public int getEventIdentifier()
     {
         TransactionImpl tx = (TransactionImpl) getTransaction();

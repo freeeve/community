@@ -47,8 +47,8 @@ public class DefaultIdGeneratorFactory
         return generators.get( idType );
     }
 
-    public void create( FileSystemAbstraction fs, String fileName )
+    public void create( FileSystemAbstraction fs, String fileName, long highId )
     {
-        IdGeneratorImpl.createGenerator( fs, fileName );
+        IdGeneratorImpl.createGenerator( fs, fileName, highId );
     }
 }
