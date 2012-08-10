@@ -238,7 +238,7 @@ public abstract class InternalAbstractGraphDatabase
         }
     }
 
-    private void create()
+    protected void create()
     {
 
         fileSystem = life.add(createFileSystemAbstraction());
