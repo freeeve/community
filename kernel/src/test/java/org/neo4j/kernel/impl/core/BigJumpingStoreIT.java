@@ -50,6 +50,7 @@ import org.neo4j.kernel.KernelExtension;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.cache.CacheProvider;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
+import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 
 public class BigJumpingStoreIT
 {
@@ -58,7 +59,7 @@ public class BigJumpingStoreIT
         protected TestDatabase( String storeDir, Map<String, String> params )
         {
             super( storeDir, params, Service.load( IndexProvider.class ), Service.load( KernelExtension.class ),
-                    Service.load( CacheProvider.class ) );
+                    Service.load( CacheProvider.class ), Service.load( TransactionInterceptorProvider.class ) );
             run();
         }
         

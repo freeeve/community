@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.logging.Level;
 import org.neo4j.graphdb.factory.GraphDatabaseSetting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
 import org.neo4j.kernel.configuration.Config;
@@ -59,6 +60,13 @@ public class NeoStore extends AbstractStore
     public static final int RECORD_SIZE = 9;
 
     public static final String DEFAULT_NAME = "neostore";
+
+    public static boolean isStorePresent( FileSystemAbstraction fs, Config config )
+    {
+        String store = config.get( Configuration.neo_store );
+        File neoStore = new File( store, DEFAULT_NAME );
+        return fs.fileExists( neoStore.getAbsolutePath() );
+    }
 
     private NodeStore nodeStore;
     private PropertyStore propStore;
@@ -275,7 +283,7 @@ public class NeoStore extends AbstractStore
      * @param version the version to set.
      * @return the previous version before writing.
      */
-    public static long setVersion( String storeDir, long version )
+    public static long setVersion( File storeDir, long version )
     {
         RandomAccessFile file = null;
         try

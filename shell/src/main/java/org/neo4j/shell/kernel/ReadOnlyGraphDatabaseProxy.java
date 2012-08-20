@@ -33,6 +33,7 @@ import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.TransactionManager;
 
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Lock;
@@ -863,6 +864,12 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         {
             return actual.currentScore();
         }
+    }
+
+    @Override
+    public DependencyResolver getDependencyResolver()
+    {
+        return actual.getDependencyResolver();
     }
 
     @Override

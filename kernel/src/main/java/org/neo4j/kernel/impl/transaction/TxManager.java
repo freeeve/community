@@ -49,6 +49,7 @@ import org.neo4j.helpers.UTF8;
 import org.neo4j.kernel.impl.core.KernelPanicEventGenerator;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.xaframework.ForceMode;
+import org.neo4j.kernel.impl.transaction.xaframework.XaDataSource;
 import org.neo4j.kernel.impl.transaction.xaframework.XaResource;
 import org.neo4j.kernel.impl.util.ExceptionCauseSetter;
 import org.neo4j.kernel.impl.util.StringLogger;
@@ -96,6 +97,7 @@ public class TxManager extends AbstractTransactionManager
     final TxHook finishHook;
     private XaDataSourceManager xaDataSourceManager;
     private final FileSystemAbstraction fileSystem;
+    private TxManager.TxManagerDataSourceRegistrationListener dataSourceRegistrationListener;
 
     public TxManager( String txLogDir,
                       XaDataSourceManager xaDataSourceManager,
@@ -133,110 +135,27 @@ public class TxManager extends AbstractTransactionManager
     @Override
     public void init()
     {
-        txThreadMap = new ConcurrentHashMap<Thread, TransactionImpl>();
-        logSwitcherFileName = txLogDir + separator + "active_tx_log";
-        txLog1FileName = "tm_tx_log.1";
-        txLog2FileName = "tm_tx_log.2";
-        try
-        {
-            if ( fileSystem.fileExists( logSwitcherFileName ) )
-            {
-                FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
-                byte fileName[] = new byte[256];
-                ByteBuffer buf = ByteBuffer.wrap( fileName );
-                fc.read( buf );
-                fc.close();
-                String currentTxLog = txLogDir + separator
-                    + UTF8.decode( fileName ).trim();
-                if ( !fileSystem.fileExists( currentTxLog ) )
-                {
-                    throw logAndReturn("TM startup failure",
-                            new TransactionFailureException(
-                                    "Unable to start TM, " + "active tx log file[" +
-                                            currentTxLog + "] not found."));
-                }
-                txLog = new TxLog( currentTxLog, fileSystem, msgLog );
-                msgLog.logMessage( "TM opening log: " + currentTxLog, true );
-            }
-            else
-            {
-                if ( fileSystem.fileExists( txLogDir + separator + txLog1FileName )
-                    || fileSystem.fileExists( txLogDir + separator + txLog2FileName ) )
-                {
-                    throw logAndReturn("TM startup failure",
-                            new TransactionFailureException(
-                                    "Unable to start TM, "
-                                            + "no active tx log file found but found either "
-                                            + txLog1FileName + " or " + txLog2FileName
-                                            + " file, please set one of them as active or "
-                                            + "remove them."));
-                }
-                ByteBuffer buf = ByteBuffer.wrap( txLog1FileName
-                    .getBytes( "UTF-8" ) );
-                FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
-                fc.write( buf );
-                txLog = new TxLog( txLogDir + separator + txLog1FileName, fileSystem, msgLog );
-                msgLog.logMessage( "TM new log: " + txLog1FileName, true );
-                fc.force( true );
-                fc.close();
-            }
-            tmOk = true;
-        }
-        catch ( IOException e )
-        {
-            log.log(Level.SEVERE, "Unable to start TM", e);
-            throw logAndReturn("TM startup failure",
-                    new TransactionFailureException("Unable to start TM", e));
-        }
     }
 
     @Override
     public void start()
         throws Throwable
     {
-        // Do recovery on start - all Resources should be registered by now
-        Iterator<List<TxLog.Record>> danglingRecordList =
-            txLog.getDanglingRecords();
-        boolean danglingRecordFound = danglingRecordList.hasNext();
-        if ( danglingRecordFound )
-        {
-            log.info( "Unresolved transactions found, " +
-                "recovery started ..." );
-
-            msgLog.logMessage( "TM non resolved transactions found in " + txLog.getName(), true );
-
-            // Recover DataSources
-            xaDataSourceManager.recover(danglingRecordList);
-
-            log.info( "Recovery completed, all transactions have been " +
-                "resolved to a consistent state." );
-            msgLog.logMessage( "Recovery completed, all transactions have been " +
-                "resolved to a consistent state." );
-        }
-        getTxLog().truncate();
+        dataSourceRegistrationListener = new TxManagerDataSourceRegistrationListener();
+        xaDataSourceManager.addDataSourceRegistrationListener( dataSourceRegistrationListener );
     }
 
     @Override
     public void stop()
     {
+        xaDataSourceManager.removeDataSourceRegistrationListener(dataSourceRegistrationListener);
+        closeLog();
     }
 
     @Override
     public void shutdown()
         throws Throwable
     {
-        if ( txLog != null )
-        {
-            try
-            {
-                txLog.close();
-            }
-            catch ( IOException e )
-            {
-                log.log( Level.WARNING, "Unable to close tx log[" + txLog.getName() + "]", e );
-            }
-        }
-        msgLog.logMessage( "TM shutting down", true );
     }
 
     synchronized TxLog getTxLog() throws IOException
@@ -265,6 +184,23 @@ public class TxManager extends AbstractTransactionManager
             }
         }
         return txLog;
+    }
+
+    private void closeLog()
+    {
+        if ( txLog != null )
+        {
+            try
+            {
+                txLog.close();
+                txLog = null;
+            }
+            catch ( IOException e )
+            {
+                log.log( Level.WARNING, "Unable to close tx log[" + txLog.getName() + "]", e );
+            }
+        }
+        msgLog.logMessage( "TM shutting down", true );
     }
 
     private void changeActiveLog( String newFileName ) throws IOException
@@ -841,5 +777,109 @@ public class TxManager extends AbstractTransactionManager
     public int getPeakConcurrentTxCount()
     {
         return peakConcurrentTransactions;
+    }
+
+    private class TxManagerDataSourceRegistrationListener implements DataSourceRegistrationListener
+    {
+        @Override
+        public void registeredDataSource( XaDataSource ds )
+        {
+            if(xaDataSourceManager.getAllRegisteredDataSources().size() != 1)
+            {
+                return;
+            }
+            try
+            {
+            txThreadMap = new ConcurrentHashMap<Thread, TransactionImpl>();
+            logSwitcherFileName = txLogDir + separator + "active_tx_log";
+            txLog1FileName = "tm_tx_log.1";
+            txLog2FileName = "tm_tx_log.2";
+            try
+            {
+                if ( fileSystem.fileExists( logSwitcherFileName ) )
+                {
+                    FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
+                    byte fileName[] = new byte[256];
+                    ByteBuffer buf = ByteBuffer.wrap( fileName );
+                    fc.read( buf );
+                    fc.close();
+                    String currentTxLog = txLogDir + separator
+                            + UTF8.decode( fileName ).trim();
+                    if ( !fileSystem.fileExists( currentTxLog ) )
+                    {
+                        throw logAndReturn("TM startup failure",
+                                new TransactionFailureException(
+                                        "Unable to start TM, " + "active tx log file[" +
+                                                currentTxLog + "] not found."));
+                    }
+                    txLog = new TxLog( currentTxLog, fileSystem, msgLog );
+                    msgLog.logMessage( "TM opening log: " + currentTxLog, true );
+                }
+                else
+                {
+                    if ( fileSystem.fileExists( txLogDir + separator + txLog1FileName )
+                            || fileSystem.fileExists( txLogDir + separator + txLog2FileName ) )
+                    {
+                        throw logAndReturn("TM startup failure",
+                                new TransactionFailureException(
+                                        "Unable to start TM, "
+                                                + "no active tx log file found but found either "
+                                                + txLog1FileName + " or " + txLog2FileName
+                                                + " file, please set one of them as active or "
+                                                + "remove them."));
+                    }
+                    ByteBuffer buf = ByteBuffer.wrap( txLog1FileName
+                            .getBytes( "UTF-8" ) );
+                    FileChannel fc = fileSystem.open( logSwitcherFileName, "rw" );
+                    fc.write( buf );
+                    txLog = new TxLog( txLogDir + separator + txLog1FileName, fileSystem, msgLog );
+                    msgLog.logMessage( "TM new log: " + txLog1FileName, true );
+                    fc.force( true );
+                    fc.close();
+                }
+                tmOk = true;
+            }
+            catch ( IOException e )
+            {
+                log.log(Level.SEVERE, "Unable to start TM", e);
+                throw logAndReturn("TM startup failure",
+                        new TransactionFailureException("Unable to start TM", e));
+            }
+
+            // Do recovery on start - all Resources should be registered by now
+            Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
+            boolean danglingRecordFound = danglingRecordList.hasNext();
+            if ( danglingRecordFound )
+            {
+                log.info( "Unresolved transactions found, " +
+                        "recovery started ..." );
+
+                msgLog.logMessage( "TM non resolved transactions found in " + txLog.getName(), true );
+
+                // Recover DataSources
+                xaDataSourceManager.recover(danglingRecordList);
+
+                log.info( "Recovery completed, all transactions have been " +
+                        "resolved to a consistent state." );
+                msgLog.logMessage( "Recovery completed, all transactions have been " +
+                        "resolved to a consistent state." );
+            }
+            getTxLog().truncate();
+        }
+            catch ( Throwable t )
+            {
+                setTmNotOk( t );
+            }
+        }
+
+        @Override
+        public void unregisteredDataSource( XaDataSource ds )
+        {
+            if (xaDataSourceManager.getAllRegisteredDataSources().size() != 0)
+            {
+                return;
+            }
+            closeLog();
+        }
     }
 }

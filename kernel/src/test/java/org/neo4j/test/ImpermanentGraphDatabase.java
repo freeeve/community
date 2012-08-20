@@ -39,6 +39,7 @@ import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.KernelExtension;
 import org.neo4j.kernel.impl.cache.CacheProvider;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
+import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 import org.neo4j.kernel.impl.util.FileUtils;
 import org.neo4j.kernel.logging.ClassicLoggingService;
 import org.neo4j.kernel.logging.Logging;
@@ -73,9 +74,11 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
     }
 
     public ImpermanentGraphDatabase( Map<String,String> params, Iterable<IndexProvider> indexProviders,
-            Iterable<KernelExtension> kernelExtensions, Iterable<CacheProvider> cacheProviders )
+            Iterable<KernelExtension> kernelExtensions, Iterable<CacheProvider> cacheProviders,
+            Iterable<TransactionInterceptorProvider> transactionInterceptorProviders )
     {
-        super( path(), withoutMemmap( params ), indexProviders, kernelExtensions, cacheProviders );
+        super( path(), withoutMemmap( params ), indexProviders, kernelExtensions, cacheProviders,
+                transactionInterceptorProviders );
     }
 
     @Override

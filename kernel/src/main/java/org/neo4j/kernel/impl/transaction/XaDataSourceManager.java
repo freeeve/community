@@ -34,6 +34,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import org.neo4j.graphdb.TransactionFailureException;
+import org.neo4j.helpers.Listeners;
 import org.neo4j.helpers.UTF8;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.configuration.Config;
@@ -67,13 +68,37 @@ public class XaDataSourceManager
     // key = data source name, value = branchId
     private final Map<String, byte[]> sourceIdMapping =
         new HashMap<String, byte[]>();
+    private Iterable<DataSourceRegistrationListener> dsRegistrationListeners = Listeners.<DataSourceRegistrationListener>newListeners();
 
     private StringLogger msgLog;
 
-    public XaDataSourceManager( StringLogger msgLog)
+    public XaDataSourceManager( StringLogger msgLog )
     {
         this.msgLog = msgLog;
     }
+
+    public void addDataSourceRegistrationListener( DataSourceRegistrationListener listener )
+    {
+        try
+        {
+            for ( XaDataSource ds : dataSources.values() )
+            {
+                listener.registeredDataSource( ds );
+            }
+        }
+        catch ( Throwable t )
+        {
+            msgLog.logMessage( "Failed when notifying registering listener", t );
+        }
+        dsRegistrationListeners = Listeners.addListener( listener, dsRegistrationListeners );
+    }
+
+    public void removeDataSourceRegistrationListener( DataSourceRegistrationListener
+                                                              dataSourceRegistrationListener )
+    {
+        dsRegistrationListeners = Listeners.removeListener( dataSourceRegistrationListener, dsRegistrationListeners );
+    }
+
 
     @Override
     public void init()
@@ -128,11 +153,19 @@ public class XaDataSourceManager
     /**
      * Public for testing purpose. Do not use.
      */
-    public synchronized void registerDataSource( XaDataSource dataSource )
+    public synchronized void registerDataSource( final XaDataSource dataSource )
     {
         dataSources.put( dataSource.getName(), dataSource );
         branchIdMapping.put( UTF8.decode( dataSource.getBranchId() ), dataSource );
         sourceIdMapping.put( dataSource.getName(), dataSource.getBranchId() );
+        Listeners.notifyListeners(dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
+        {
+            @Override
+            public void notify( DataSourceRegistrationListener listener )
+            {
+                listener.registeredDataSource( dataSource );
+            }
+        });
     }
 
     /**
@@ -140,12 +173,20 @@ public class XaDataSourceManager
      */
     public synchronized void unregisterDataSource( String name )
     {
-        XaDataSource dataSource = dataSources.get( name );
+        final XaDataSource dataSource = dataSources.get( name );
         byte branchId[] = getBranchId(
             dataSource.getXaConnection().getXaResource() );
         dataSources.remove( name );
         branchIdMapping.remove( UTF8.decode( branchId ) );
         sourceIdMapping.remove( name );
+        Listeners.notifyListeners(dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
+        {
+            @Override
+            public void notify( DataSourceRegistrationListener listener )
+            {
+                listener.unregisteredDataSource( dataSource );
+            }
+        });
         dataSource.close();
     }
 

@@ -60,7 +60,7 @@ class IndexManagerImpl implements IndexManager
     private AbstractTransactionManager txManager;
     private GraphDatabaseAPI graphDatabaseAPI;
 
-    IndexManagerImpl( Config config,IndexStore indexStore,
+    IndexManagerImpl( Config config, IndexStore indexStore,
                       XaDataSourceManager xaDataSourceManager, AbstractTransactionManager txManager, GraphDatabaseAPI graphDatabaseAPI
     )
     {

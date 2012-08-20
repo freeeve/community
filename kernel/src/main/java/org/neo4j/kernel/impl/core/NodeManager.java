@@ -54,9 +54,12 @@ import org.neo4j.kernel.impl.nioneo.store.Record;
 import org.neo4j.kernel.impl.nioneo.store.RelationshipRecord;
 import org.neo4j.kernel.impl.persistence.EntityIdGenerator;
 import org.neo4j.kernel.impl.persistence.PersistenceManager;
+import org.neo4j.kernel.impl.transaction.DataSourceRegistrationListener;
 import org.neo4j.kernel.impl.transaction.LockException;
 import org.neo4j.kernel.impl.transaction.LockManager;
 import org.neo4j.kernel.impl.transaction.LockType;
+import org.neo4j.kernel.impl.transaction.XaDataSourceManager;
+import org.neo4j.kernel.impl.transaction.xaframework.XaDataSource;
 import org.neo4j.kernel.impl.util.ArrayMap;
 import org.neo4j.kernel.impl.util.RelIdArray;
 import org.neo4j.kernel.impl.util.RelIdArray.DirectionWrapper;
@@ -83,6 +86,7 @@ public class NodeManager
     private final RelationshipTypeHolder relTypeHolder;
     private final PersistenceManager persistenceManager;
     private final EntityIdGenerator idGenerator;
+    private final XaDataSourceManager xaDsm;
 
     private final NodeProxy.NodeLookup nodeLookup;
     private final RelationshipProxy.RelationshipLookups relationshipLookups;
@@ -98,11 +102,12 @@ public class NodeManager
     private GraphProperties graphProperties;
 
     public NodeManager( Config config, GraphDatabaseService graphDb, LockManager lockManager,
-            LockReleaser lockReleaser, TransactionManager transactionManager,
-            PersistenceManager persistenceManager, EntityIdGenerator idGenerator,
-            RelationshipTypeHolder relationshipTypeHolder, CacheProvider cacheProvider, PropertyIndexManager propertyIndexManager,
-            NodeProxy.NodeLookup nodeLookup, RelationshipProxy.RelationshipLookups relationshipLookups, 
-            Cache<NodeImpl> nodeCache, Cache<RelationshipImpl> relCache )
+                        LockReleaser lockReleaser, TransactionManager transactionManager,
+                        PersistenceManager persistenceManager, EntityIdGenerator idGenerator,
+                        RelationshipTypeHolder relationshipTypeHolder, CacheProvider cacheProvider,
+                        PropertyIndexManager propertyIndexManager, NodeProxy.NodeLookup nodeLookup,
+                        RelationshipProxy.RelationshipLookups relationshipLookups, Cache<NodeImpl> nodeCache,
+                        Cache<RelationshipImpl> relCache, XaDataSourceManager xaDsm )
     {
         this.graphDbService = graphDb;
         this.lockManager = lockManager;
@@ -118,6 +123,7 @@ public class NodeManager
         this.cacheProvider = cacheProvider;
         this.nodeCache = nodeCache;
         this.relCache = relCache;
+        this.xaDsm = xaDsm;
         for ( int i = 0; i < loadLocks.length; i++ )
         {
             loadLocks[i] = new ReentrantLock();
@@ -145,27 +151,7 @@ public class NodeManager
     @Override
     public void start( )
     {
-        // load and verify from PS
-        NameData[] relTypes = null;
-        NameData[] propertyIndexes = null;
-        // beginTx();
-        relTypes = persistenceManager.loadAllRelationshipTypes();
-        propertyIndexes = persistenceManager.loadPropertyIndexes( INDEX_COUNT );
-        // commitTx();
-        addRawRelationshipTypes( relTypes );
-        addPropertyIndexes( propertyIndexes );
-        if ( propertyIndexes.length < INDEX_COUNT )
-        {
-            setHasAllpropertyIndexes( true );
-        }
-
-//        useAdaptiveCache = config.use_adaptive_cache(false);
-//        float adaptiveCacheHeapRatio = config.adaptive_cache_heap_ratio( 0.77f, 0.1f, 0.95f );
-//        int minNodeCacheSize = config.min_node_cache_size( 0 );
-//        int minRelCacheSize = config.min_relationship_cache_size( 0 );
-//        int maxNodeCacheSize = config.max_node_cache_size( 1500 );
-//        int maxRelCacheSize = config.max_relationship_cache_size( 3500 );
-
+        xaDsm.addDataSourceRegistrationListener( new NodeManagerDatasourceListener() );
     }
 
     @Override
@@ -1238,5 +1224,42 @@ public class NodeManager
     void updateCacheSize( RelationshipImpl rel, int newSize )
     {
         relCache.updateSize( rel, newSize );
+    }
+
+    private class NodeManagerDatasourceListener implements DataSourceRegistrationListener
+    {
+        @Override
+        public void registeredDataSource( XaDataSource ds )
+        {
+            if (ds.getName().equals( Config.DEFAULT_DATA_SOURCE_NAME ))
+            {
+                // load and verify from PS
+                NameData[] relTypes = null;
+                NameData[] propertyIndexes = null;
+                // beginTx();
+                relTypes = persistenceManager.loadAllRelationshipTypes();
+                propertyIndexes = persistenceManager.loadPropertyIndexes( INDEX_COUNT );
+                // commitTx();
+                addRawRelationshipTypes( relTypes );
+                addPropertyIndexes( propertyIndexes );
+                if ( propertyIndexes.length < INDEX_COUNT )
+                {
+                    setHasAllpropertyIndexes( true );
+                }
+
+    //        useAdaptiveCache = config.use_adaptive_cache(false);
+    //        float adaptiveCacheHeapRatio = config.adaptive_cache_heap_ratio( 0.77f, 0.1f, 0.95f );
+    //        int minNodeCacheSize = config.min_node_cache_size( 0 );
+    //        int minRelCacheSize = config.min_relationship_cache_size( 0 );
+    //        int maxNodeCacheSize = config.max_node_cache_size( 1500 );
+    //        int maxRelCacheSize = config.max_relationship_cache_size( 3500 );
+            }
+
+        }
+
+        @Override
+        public void unregisteredDataSource( XaDataSource ds )
+        {
+        }
     }
 }

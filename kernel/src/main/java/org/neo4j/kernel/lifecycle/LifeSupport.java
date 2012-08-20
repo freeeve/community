@@ -47,6 +47,19 @@ public class LifeSupport
         return instance;
     }
 
+    public boolean remove( Object instance )
+    {
+        for ( int i = 0; i < instances.size(); i++ )
+        {
+            if (instances.get( i ).isInstance( instance ))
+            {
+                instances.remove( i );
+                return true;
+            }
+        }
+        return false;
+    }
+
     public synchronized LifecycleStatus getStatus()
     {
         return status;
@@ -456,6 +469,11 @@ public class LifeSupport
         public String toString()
         {
             return instance.toString()+": "+currentStatus.name();
+        }
+
+        public boolean isInstance( Object instance )
+        {
+            return this.instance == instance;
         }
     }
 }

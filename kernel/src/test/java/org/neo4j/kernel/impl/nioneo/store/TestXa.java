@@ -44,6 +44,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
@@ -53,6 +54,7 @@ import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.DefaultIdGeneratorFactory;
+import org.neo4j.kernel.TransactionInterceptorProviders;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationDefaults;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
@@ -421,7 +423,7 @@ public class TestXa extends AbstractNeo4jTestCase
             IOException
     {
         FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-        Config config = new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply(MapUtil.stringMap(
+        final Config config = new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply(MapUtil.stringMap(
             InternalAbstractGraphDatabase.Configuration.store_dir.name(), path(),
             InternalAbstractGraphDatabase.Configuration.neo_store.name(), file( "neo" ),
             InternalAbstractGraphDatabase.Configuration.logical_log.name(), file( LOGICAL_LOG_DEFAULT_NAME ))));
@@ -440,7 +442,15 @@ public class TestXa extends AbstractNeo4jTestCase
         return new NeoStoreXaDataSource( config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
                 new XaFactory(config, TxIdGenerator.DEFAULT, txManager,
                         logBufferFactory, fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID, LogPruneStrategies.NO_PRUNING ),
-        Collections.<Pair<TransactionInterceptorProvider,Object>>emptyList(), null);
+                new TransactionInterceptorProviders( Collections.<TransactionInterceptorProvider>emptyList(), new DependencyResolver()
+
+                {
+                    @Override
+                    public <T> T resolveDependency( Class<T> type ) throws IllegalArgumentException
+                    {
+                        return (T) config;
+                    }
+                } ), null );
     }
 
     @Test

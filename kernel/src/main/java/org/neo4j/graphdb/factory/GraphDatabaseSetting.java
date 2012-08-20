@@ -354,18 +354,22 @@ public abstract class GraphDatabaseSetting<T>
             return Integer.parseInt( rawValue );
         }
     }
-    
-    public static class TimeSpanSetting extends GraphDatabaseSetting<Long>
-    {
 
+    public static class TimeSpanSetting extends NumberSetting<Long>
+    {
         // Regular expression that matches a duration e.g. 10ms or 5s
         private final Pattern timeSpanRegex = Pattern.compile("\\d+(ms|s|m)"); 
-        
+
         public TimeSpanSetting( String name )
         {
             super(name, "Must be a valid time span");
         }
-        
+
+        public TimeSpanSetting( String name, Long min, Long max )
+        {
+            super( name, "Must be a valid time span", min, max );
+        }
+
         @Override
         public void validate( Locale locale, String value )
             throws IllegalArgumentException
@@ -377,8 +381,9 @@ public abstract class GraphDatabaseSetting<T>
             {
                 throw illegalValue( locale, value );
             }
+            rangeCheck( locale, TimeUtil.parseTimeMillis( value ) );
         }
-        
+
         @Override
         public Long valueOf(String rawValue, Config config) 
         {

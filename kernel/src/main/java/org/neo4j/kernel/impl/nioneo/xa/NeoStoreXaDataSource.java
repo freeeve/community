@@ -43,6 +43,7 @@ import org.neo4j.helpers.UTF8;
 import org.neo4j.helpers.collection.ClosableIterable;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.kernel.InternalAbstractGraphDatabase;
+import org.neo4j.kernel.TransactionInterceptorProviders;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.core.LockReleaser;
 import org.neo4j.kernel.impl.core.PropertyIndex;
@@ -91,7 +92,6 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         public static final GraphDatabaseSetting.StringSetting store_dir = InternalAbstractGraphDatabase.Configuration.store_dir;
         public static final GraphDatabaseSetting.StringSetting neo_store = InternalAbstractGraphDatabase.Configuration.neo_store;
         public static final GraphDatabaseSetting.StringSetting logical_log = InternalAbstractGraphDatabase.Configuration.logical_log;
-        public static final GraphDatabaseSetting.BooleanSetting intercept_committing_transactions = GraphDatabaseSettings.intercept_committing_transactions;
     }
 
     public static final byte BRANCH_ID[] = UTF8.encode( "414141" );
@@ -100,6 +100,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
     private static Logger logger = Logger.getLogger(
         NeoStoreXaDataSource.class.getName() );
 
+    private final Config config;
     private final NeoStore neoStore;
     private final XaContainer xaContainer;
     private final ArrayMap<Class<?>,Store> idGenerators;
@@ -109,8 +110,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
     private final String storeDir;
     private final boolean readOnly;
 
-    private Config config;
-    private final List<Pair<TransactionInterceptorProvider, Object>> providers;
+    private final TransactionInterceptorProviders providers;
 
     private boolean logApplied = false;
 
@@ -179,8 +179,10 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
      * @throws IOException
      *             If unable to create data source
      */
-    public NeoStoreXaDataSource( Config conf, StoreFactory sf, FileSystemAbstraction fileSystemAbstraction, LockManager lockManager, LockReleaser lockReleaser, StringLogger stringLogger, XaFactory xaFactory,
-                                 List<Pair<TransactionInterceptorProvider, Object>> providers, DependencyResolver dependencyResolver) throws IOException
+    public NeoStoreXaDataSource( Config conf, StoreFactory sf, FileSystemAbstraction fileSystemAbstraction,
+                                 LockManager lockManager, LockReleaser lockReleaser, StringLogger stringLogger,
+                                 XaFactory xaFactory, TransactionInterceptorProviders providers,
+                                 DependencyResolver dependencyResolver) throws IOException
     {
         super( BRANCH_ID, Config.DEFAULT_DATA_SOURCE_NAME );
         config = conf;
@@ -192,7 +194,6 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         msgLog = stringLogger;
         storeDir = conf.get( Configuration.store_dir );
         String store = conf.get( Configuration.neo_store );
-        File file = new File( store );
         if ( !readOnly && !fileSystemAbstraction.fileExists( store ))
         {
             msgLog.logMessage( "Creating new db @ " + store, true );
@@ -201,8 +202,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         }
 
         final TransactionFactory tf;
-        boolean shouldIntercept = conf.getBoolean( Configuration.intercept_committing_transactions );
-        if ( shouldIntercept && !providers.isEmpty() )
+        if ( providers.shouldInterceptCommitting() )
         {
             tf = new InterceptingTransactionFactory( dependencyResolver );
         }
@@ -212,8 +212,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         }
         neoStore = sf.newNeoStore(store);
         
-        xaContainer = xaFactory.newXaContainer(this, conf.get( Configuration.logical_log ), new CommandFactory( neoStore ), tf,
-                shouldIntercept && !providers.isEmpty() ? providers : null, dependencyResolver );
+        xaContainer = xaFactory.newXaContainer(this, conf.get( Configuration.logical_log ), new CommandFactory( neoStore ), tf, providers  );
 
         try
         {
@@ -350,11 +349,9 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         @Override
         public XaTransaction create( int identifier )
         {
-
-            TransactionInterceptor first = TransactionInterceptorProvider.resolveChain(
-                    providers, NeoStoreXaDataSource.this, dependencyResolver );
-            return new InterceptingWriteTransaction( identifier,
-                    getLogicalLog(), neoStore, lockReleaser, lockManager, first );
+            TransactionInterceptor first = providers.resolveChain( NeoStoreXaDataSource.this );
+            return new InterceptingWriteTransaction( identifier, getLogicalLog(), neoStore, lockReleaser, lockManager,
+                    first );
         }
     }
 

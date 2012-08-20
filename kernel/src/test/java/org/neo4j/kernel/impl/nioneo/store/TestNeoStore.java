@@ -43,6 +43,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
@@ -54,6 +55,7 @@ import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.DefaultIdGeneratorFactory;
+import org.neo4j.kernel.TransactionInterceptorProviders;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationDefaults;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
@@ -159,7 +161,7 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         LockReleaser lockReleaser = getEmbeddedGraphDb().getLockReleaser();
 
         FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-        Config config = new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply( MapUtil.stringMap(
+        final Config config = new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply( MapUtil.stringMap(
             InternalAbstractGraphDatabase.Configuration.store_dir.name(), path(),
             InternalAbstractGraphDatabase.Configuration.neo_store.name(), file("neo"),
             InternalAbstractGraphDatabase.Configuration.logical_log.name(), file("nioneo_logical.log"))));
@@ -167,7 +169,16 @@ public class TestNeoStore extends AbstractNeo4jTestCase
 
         ds = new NeoStoreXaDataSource(config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
                 new XaFactory(config, TxIdGenerator.DEFAULT, new PlaceboTm(),
-                        new DefaultLogBufferFactory(), fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID, LogPruneStrategies.NO_PRUNING ), Collections.<Pair<TransactionInterceptorProvider,Object>>emptyList(), null );
+                        new DefaultLogBufferFactory(), fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID,
+                        LogPruneStrategies.NO_PRUNING ), new TransactionInterceptorProviders( Collections.<TransactionInterceptorProvider>emptyList(), new DependencyResolver()
+
+        {
+            @Override
+            public <T> T resolveDependency( Class<T> type ) throws IllegalArgumentException
+            {
+                return (T) config;
+            }
+        } ), null );
 
         xaCon = ds.getXaConnection();
         pStore = xaCon.getPropertyStore();
@@ -1053,8 +1064,8 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         String storeDir = "target/test-data/set-version";
         FileUtils.deleteRecursively( new File( storeDir ) );
         new GraphDatabaseFactory().newEmbeddedDatabase( storeDir ).shutdown();
-        assertEquals( 1, NeoStore.setVersion( storeDir, 10 ) );
-        assertEquals( 10, NeoStore.setVersion( storeDir, 12 ) );
+        assertEquals( 1, NeoStore.setVersion( new File( storeDir ), 10 ) );
+        assertEquals( 10, NeoStore.setVersion( new File( storeDir ), 12 ) );
 
         FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
         StoreFactory sf = new StoreFactory(new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply( new HashMap<String, String>(  )  )),

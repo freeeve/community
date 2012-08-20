@@ -53,7 +53,6 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.graphdb.index.IndexProvider;
 import org.neo4j.helpers.DaemonThreadFactory;
-import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.Service;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationChange;
@@ -89,6 +88,7 @@ import org.neo4j.kernel.impl.nioneo.xa.NioNeoDbPersistenceSource;
 import org.neo4j.kernel.impl.persistence.PersistenceManager;
 import org.neo4j.kernel.impl.persistence.PersistenceSource;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
+import org.neo4j.kernel.impl.transaction.DataSourceRegistrationListener;
 import org.neo4j.kernel.impl.transaction.LockManagerImpl;
 import org.neo4j.kernel.impl.transaction.LockManager;
 import org.neo4j.kernel.impl.transaction.LockType;
@@ -105,6 +105,7 @@ import org.neo4j.kernel.impl.transaction.xaframework.LogPruneStrategies;
 import org.neo4j.kernel.impl.transaction.xaframework.RecoveryVerifier;
 import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 import org.neo4j.kernel.impl.transaction.xaframework.TxIdGenerator;
+import org.neo4j.kernel.impl.transaction.xaframework.XaDataSource;
 import org.neo4j.kernel.impl.transaction.xaframework.XaFactory;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.info.DiagnosticsManager;
@@ -124,6 +125,9 @@ import org.neo4j.tooling.GlobalGraphOperations;
 public abstract class InternalAbstractGraphDatabase
         extends AbstractGraphDatabase implements GraphDatabaseService, GraphDatabaseAPI
 {
+
+    private InternalAbstractGraphDatabase.DefaultKernelExtensionLoader kernelExtensionLoader;
+
     public static class Configuration
     {
         public static final GraphDatabaseSetting.BooleanSetting dump_configuration = GraphDatabaseSettings.dump_configuration;
@@ -144,10 +148,12 @@ public abstract class InternalAbstractGraphDatabase
 
     protected String storeDir;
     protected Map<String, String> params;
+    private TransactionInterceptorProviders transactionInterceptorProviders;
     private final Iterable<KernelExtension> kernelExtensions;
     protected StoreId storeId;
     private final TransactionBuilder defaultTxBuilder = new TransactionBuilderImpl( this, ForceMode.forced );
 
+    protected DependencyResolver dependencyResolver;
     protected Logging logging;
     protected StringLogger msgLog;
     protected KernelEventHandlers kernelEventHandlers;
@@ -161,7 +167,6 @@ public abstract class InternalAbstractGraphDatabase
     protected TxHook txHook;
     protected FileSystemAbstraction fileSystem;
     protected XaDataSourceManager xaDataSourceManager;
-    protected RagManager ragManager;
     protected LockManager lockManager;
     protected IdGeneratorFactory idGeneratorFactory;
     protected RelationshipTypeCreator relationshipTypeCreator;
@@ -195,19 +200,24 @@ public abstract class InternalAbstractGraphDatabase
     protected InternalAbstractGraphDatabase( String storeDir, Map<String, String> params,
                                              Iterable<IndexProvider> indexProviders,
                                              Iterable<KernelExtension> kernelExtensions,
-                                             Iterable<CacheProvider> cacheProviders )
+                                             Iterable<CacheProvider> cacheProviders,
+                                             Iterable<TransactionInterceptorProvider> transactionInterceptorProviders)
     {
         this.params = params;
-        this.cacheProviders = mapCacheProviders( cacheProviders );
+
+        dependencyResolver = new DependencyResolverImpl();
+
+        // Setup configuration
+        params.put(Configuration.store_dir.name(), storeDir);
 
         // SPI - provided services
         this.indexProviders = indexProviders;
         this.kernelExtensions = kernelExtensions;
-
-        // Setup configuration
-        params.put(Configuration.store_dir.name(), storeDir);
+        this.cacheProviders = mapCacheProviders( cacheProviders );
         config = new Config( params, getSettingsClasses() );
-        
+        this.transactionInterceptorProviders = new TransactionInterceptorProviders( transactionInterceptorProviders,
+                dependencyResolver );
+
         this.storeDir = config.get(Configuration.store_dir);
     }
 
@@ -226,21 +236,21 @@ public abstract class InternalAbstractGraphDatabase
         try
         {
             life.start();
+            System.out.println( "Lifecycle start complete" );
         }
-        catch( LifecycleException throwable )
+        catch( Throwable throwable )
         {
             msgLog.logMessage( "Startup failed", throwable );
 
             shutdown();
 
 //            throw new IllegalStateException( "Startup failed", throwable );
-            throw throwable;
+            throw new RuntimeException( throwable );
         }
     }
 
     protected void create()
     {
-
         fileSystem = life.add(createFileSystemAbstraction());
 
         // Create logger
@@ -286,11 +296,10 @@ public abstract class InternalAbstractGraphDatabase
 
         txHook = createTxHook();
 
-        xaDataSourceManager = life.add( new XaDataSourceManager( logging.getLogger( Loggers.DATASOURCE )) );
+        xaDataSourceManager = life.add( createXaDataSourceManager() );
+        xaDataSourceManager.addDataSourceRegistrationListener( new StuffToDoAfterRecovery() );
 
         guard = config.get( Configuration.execution_guard_enabled ) ? new Guard( msgLog ) : null;
-
-        xaDataSourceManager = life.add(new XaDataSourceManager(msgLog));
 
         if (readOnly)
         {
@@ -320,7 +329,6 @@ public abstract class InternalAbstractGraphDatabase
 
         txIdGenerator = life.add( createTxIdGenerator() );
 
-        ragManager = new RagManager(txManager );
         lockManager = createLockManager();
 
         idGeneratorFactory = createIdGeneratorFactory();
@@ -377,7 +385,8 @@ public abstract class InternalAbstractGraphDatabase
 
         if ( config.get( Configuration.load_kernel_extensions ))
         {
-            life.add(new DefaultKernelExtensionLoader( extensions ));
+            kernelExtensionLoader = new DefaultKernelExtensionLoader( extensions );
+            life.add( kernelExtensionLoader );
         }
 
         if( indexProviders == null )
@@ -400,27 +409,7 @@ public abstract class InternalAbstractGraphDatabase
         xaFactory = new XaFactory(config, txIdGenerator, txManager, logBufferFactory, fileSystem,
                 logging.getLogger( Loggers.XAFACTORY), recoveryVerifier, LogPruneStrategies.fromConfigValue( fileSystem, keepLogicalLogsConfig ) );
 
-        // Create DataSource
-        List<Pair<TransactionInterceptorProvider, Object>> providers = new ArrayList<Pair<TransactionInterceptorProvider, Object>>( 2 );
-        for ( TransactionInterceptorProvider provider : Service.load( TransactionInterceptorProvider.class ) )
-        {
-            Object prov = params.get( TransactionInterceptorProvider.class.getSimpleName() + "." + provider.name() );
-            if ( prov != null )
-            {
-                providers.add( Pair.of( provider, prov ) );
-            }
-        }
-
-        try
-        {
-            // TODO IO stuff should be done in lifecycle. Refactor!
-            neoDataSource = new NeoStoreXaDataSource( config,
-                    storeFactory, fileSystem, lockManager, lockReleaser, logging.getLogger( Loggers.DATASOURCE ), xaFactory, providers, new DependencyResolverImpl());
-            xaDataSourceManager.registerDataSource( neoDataSource );
-        } catch (IOException e)
-        {
-            throw new IllegalStateException("Could not create Neo XA datasource", e);
-        }
+        createNeoDataSource();
 
         life.add( new StuffToDoAfterRecovery() );
 
@@ -436,6 +425,17 @@ public abstract class InternalAbstractGraphDatabase
         life.add( new ConfigurationChangedRestarter() );
     }
 
+    protected XaDataSourceManager createXaDataSourceManager()
+    {
+        return new XaDataSourceManager( logging.getLogger( Loggers.DATASOURCE ));
+    }
+
+    @Override
+    public DependencyResolver getDependencyResolver()
+    {
+        return dependencyResolver;
+    }
+
     protected RelationshipTypeCreator createRelationshipTypeCreator()
     {
         return new DefaultRelationshipTypeCreator();
@@ -448,12 +448,12 @@ public abstract class InternalAbstractGraphDatabase
         {
             return new ReadOnlyNodeManager( config, this, lockManager, lockReleaser, txManager, persistenceManager,
                     persistenceSource, relationshipTypeHolder, cacheType, propertyIndexManager, createNodeLookup(),
-                    createRelationshipLookups(), nodeCache, relCache );
+                    createRelationshipLookups(), nodeCache, relCache, xaDataSourceManager );
         }
 
         return new NodeManager( config, this, lockManager, lockReleaser, txManager, persistenceManager,
                 persistenceSource, relationshipTypeHolder, cacheType, propertyIndexManager, createNodeLookup(),
-                createRelationshipLookups(), nodeCache, relCache );
+                createRelationshipLookups(), nodeCache, relCache, xaDataSourceManager );
     }
 
     private NodeManager createGuardedNodeManager( final boolean readOnly, final CacheProvider cacheType,
@@ -463,7 +463,7 @@ public abstract class InternalAbstractGraphDatabase
         {
             return new ReadOnlyNodeManager( config, this, lockManager, lockReleaser, txManager, persistenceManager,
                     persistenceSource, relationshipTypeHolder, cacheType, propertyIndexManager, createNodeLookup(),
-                    createRelationshipLookups(), nodeCache, relCache )
+                    createRelationshipLookups(), nodeCache, relCache, xaDataSourceManager )
             {
                 @Override
                 protected Node getNodeByIdOrNull( final long nodeId )
@@ -512,7 +512,7 @@ public abstract class InternalAbstractGraphDatabase
 
         return new NodeManager( config, this, lockManager, lockReleaser, txManager, persistenceManager,
                 persistenceSource, relationshipTypeHolder, cacheType, propertyIndexManager, createNodeLookup(),
-                createRelationshipLookups(), nodeCache, relCache )
+                createRelationshipLookups(), nodeCache, relCache, xaDataSourceManager )
         {
             @Override
             protected Node getNodeByIdOrNull( final long nodeId )
@@ -697,7 +697,7 @@ public abstract class InternalAbstractGraphDatabase
 
     protected LockManager createLockManager()
     {
-        return new LockManagerImpl(ragManager);
+        return new LockManagerImpl(new RagManager(txManager ));
     }
 
     protected Logging createStringLogger()
@@ -710,6 +710,23 @@ public abstract class InternalAbstractGraphDatabase
         catch( ClassNotFoundException e )
         {
             return life.add( new ClassicLoggingService(config));
+        }
+    }
+
+    protected void createNeoDataSource()
+    {
+        // Create DataSource
+        try
+        {
+            // TODO IO stuff should be done in lifecycle. Refactor!
+            neoDataSource = new NeoStoreXaDataSource( config,
+                    storeFactory, fileSystem, lockManager, lockReleaser, logging.getLogger( Loggers.DATASOURCE ),
+                    xaFactory, transactionInterceptorProviders, dependencyResolver );
+            xaDataSourceManager.registerDataSource( neoDataSource );
+
+        } catch (IOException e)
+        {
+            throw new IllegalStateException("Could not create Neo XA datasource", e);
         }
     }
 
@@ -1145,7 +1162,7 @@ public abstract class InternalAbstractGraphDatabase
         }
     }
 
-    private class DefaultKernelExtensionLoader implements Lifecycle
+    public class DefaultKernelExtensionLoader implements Lifecycle
     {
         private final KernelData extensions;
 
@@ -1185,11 +1202,11 @@ public abstract class InternalAbstractGraphDatabase
 
         void loadIndexImplementations( IndexManagerImpl indexes, StringLogger msgLog )
         {
-            for ( IndexProvider index : indexProviders)
+            for ( IndexProvider index : indexProviders )
             {
                 try
                 {
-                    indexes.addProvider( index.identifier(), index.load( new DependencyResolverImpl() ) );
+                    indexes.addProvider( index.identifier(), index.load( dependencyResolver ) );
                 }
                 catch ( Throwable cause )
                 {
@@ -1257,7 +1274,7 @@ public abstract class InternalAbstractGraphDatabase
             {
                 return (T) txManager;
             }
-            else if( LockManagerImpl.class.isAssignableFrom( type ) )
+            else if( LockManager.class.isAssignableFrom( type ) )
             {
                 return (T) lockManager;
             }
@@ -1292,6 +1309,14 @@ public abstract class InternalAbstractGraphDatabase
             else if( Guard.class.isAssignableFrom( type ) )
             {
                 return (T) guard;
+            }
+            else if ( TransactionInterceptorProviders.class.isAssignableFrom( type ) )
+            {
+                return (T) transactionInterceptorProviders;
+            }
+            else if ( DefaultKernelExtensionLoader.class.isAssignableFrom( type ) )
+            {
+                return (T) kernelExtensionLoader;
             }
             else
             {
@@ -1368,29 +1393,22 @@ public abstract class InternalAbstractGraphDatabase
     }
 
     // TODO Probably change name
-    class StuffToDoAfterRecovery implements Lifecycle
+    class StuffToDoAfterRecovery implements DataSourceRegistrationListener
     {
         @Override
-        public void init() throws Throwable
+        public void unregisteredDataSource( XaDataSource ds )
         {
         }
 
         @Override
-        public void start() throws Throwable
+        public void registeredDataSource( XaDataSource ds )
         {
-            storeId = neoDataSource.getStoreId();
-            KernelDiagnostics.register( diagnosticsManager, InternalAbstractGraphDatabase.this,
-                    neoDataSource );
-        }
-
-        @Override
-        public void stop() throws Throwable
-        {
-        }
-
-        @Override
-        public void shutdown() throws Throwable
-        {
+            if ( ds instanceof  NeoStoreXaDataSource )
+            {
+                storeId = ((NeoStoreXaDataSource) ds).getStoreId();
+                KernelDiagnostics.register( diagnosticsManager, InternalAbstractGraphDatabase.this,
+                        ((NeoStoreXaDataSource) ds) );
+            }
         }
     }
 

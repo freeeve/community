@@ -29,6 +29,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.index.IndexProvider;
 import org.neo4j.helpers.Service;
 import org.neo4j.kernel.impl.cache.CacheProvider;
+import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 
 /**
  * A read-only version of {@link EmbeddedGraphDatabase}.
@@ -70,14 +71,14 @@ public final class EmbeddedReadOnlyGraphDatabase extends InternalAbstractGraphDa
             Map<String, String> params )
     {
         this( storeDir, params, Service.load( IndexProvider.class ), Service.load( KernelExtension.class ),
-                Service.load( CacheProvider.class ));
+                Service.load( CacheProvider.class ), Service.load( TransactionInterceptorProvider.class ));
     }
 
     public EmbeddedReadOnlyGraphDatabase( String storeDir,
             Map<String, String> params, Iterable<IndexProvider> indeProviders, Iterable<KernelExtension> kernelExtensions,
-            Iterable<CacheProvider> cacheProviders )
+            Iterable<CacheProvider> cacheProviders, Iterable<TransactionInterceptorProvider> transactionInterceptorProviders)
     {
-        super( storeDir, addReadOnly(params), indeProviders, kernelExtensions, cacheProviders );
+        super( storeDir, addReadOnly(params), indeProviders, kernelExtensions, cacheProviders, transactionInterceptorProviders );
         run();
     }
 
