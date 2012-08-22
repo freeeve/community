@@ -784,7 +784,7 @@ public class TxManager extends AbstractTransactionManager
         @Override
         public void registeredDataSource( XaDataSource ds )
         {
-            if(xaDataSourceManager.getAllRegisteredDataSources().size() != 1)
+            if( tmOk )
             {
                 return;
             }

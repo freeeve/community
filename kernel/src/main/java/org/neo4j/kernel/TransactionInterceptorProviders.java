@@ -57,7 +57,7 @@ public class TransactionInterceptorProviders
         {
             String prov = config.getParams().get(
                     TransactionInterceptorProvider.class.getSimpleName() + "." + provider.name() );
-            if ( prov != null )
+            if ( first == null )
             {
                 first = provider.create( ds, prov, resolver );
             }
