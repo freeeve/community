@@ -64,7 +64,7 @@ public class NeoStore extends AbstractStore
     public static boolean isStorePresent( FileSystemAbstraction fs, Config config )
     {
         String store = config.get( Configuration.neo_store );
-        File neoStore = new File( store, DEFAULT_NAME );
+        File neoStore = new File( store );
         return fs.fileExists( neoStore.getAbsolutePath() );
     }
 
