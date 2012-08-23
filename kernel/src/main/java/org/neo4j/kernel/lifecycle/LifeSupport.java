@@ -40,14 +40,33 @@ public class LifeSupport
     LifecycleStatus status = LifecycleStatus.NONE;
     List<LifecycleListener> listeners = new ArrayList<LifecycleListener>();
 
-    public <T> T add(T instance)
+    public synchronized <T> T add(T instance)
     {
         if (instance instanceof Lifecycle)
-            instances.add( new LifecycleInstance((Lifecycle) instance) );
+        {
+            LifecycleInstance newInstance = new LifecycleInstance( (Lifecycle) instance );
+            instances.add( newInstance );
+            bringToState( newInstance );
+        }
         return instance;
     }
 
-    public boolean remove( Object instance )
+    private void bringToState( LifecycleInstance instance )
+    {
+        switch (status)
+        {
+            case STARTED:
+                instance.start();
+                break;
+            case STOPPED:
+                instance.init();
+                break;
+            case SHUTDOWN:
+                break;
+        }
+    }
+
+    public synchronized boolean remove( Object instance )
     {
         for ( int i = 0; i < instances.size(); i++ )
         {
@@ -64,13 +83,13 @@ public class LifeSupport
     {
         return status;
     }
-    
-    public synchronized void addLifecycleListener(LifecycleListener listener)
+
+    public synchronized void addLifecycleListener( LifecycleListener listener )
     {
         listeners.add( listener );
     }
-    
-    public synchronized void removeLifecycleListener(LifecycleListener listener)
+
+    public synchronized void removeLifecycleListener( LifecycleListener listener )
     {
         listeners.remove( listener );
     }
@@ -371,7 +390,6 @@ public class LifeSupport
         return newStatus;
     }
 
-
     private class LifecycleInstance
         implements Lifecycle
     {
@@ -389,11 +407,11 @@ public class LifeSupport
         {
             if (currentStatus == LifecycleStatus.NONE )
             {
-                currentStatus = changedStatus(instance, currentStatus, LifecycleStatus.INITIALIZING);
+                currentStatus = changedStatus( instance, currentStatus, LifecycleStatus.INITIALIZING );
                 try
                 {
                     instance.init();
-                    currentStatus = changedStatus( instance, currentStatus, LifecycleStatus.STOPPED);
+                    currentStatus = changedStatus( instance, currentStatus, LifecycleStatus.STOPPED );
                 }
                 catch( Throwable e )
                 {
@@ -407,6 +425,10 @@ public class LifeSupport
         public void start()
             throws LifecycleException
         {
+            if ( currentStatus == LifecycleStatus.NONE )
+            {
+                init();
+            }
             if (currentStatus == LifecycleStatus.STOPPED )
             {
                 currentStatus = changedStatus( instance, currentStatus, LifecycleStatus.STARTING);
