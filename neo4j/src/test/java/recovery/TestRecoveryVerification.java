@@ -40,6 +40,7 @@ import org.neo4j.kernel.impl.transaction.xaframework.LogEntry.TwoPhaseCommit;
 import org.neo4j.kernel.impl.transaction.xaframework.RecoveryVerificationException;
 import org.neo4j.kernel.impl.transaction.xaframework.RecoveryVerifier;
 import org.neo4j.kernel.impl.transaction.xaframework.TransactionInfo;
+import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 import org.neo4j.kernel.impl.util.DumpLogicalLog.CommandFactory;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 
@@ -58,7 +59,7 @@ public class TestRecoveryVerification
         TestGraphDatabase( String dir, RecoveryVerifier recoveryVerifier )
         {
             super( dir, stringMap(), Service.load( IndexProvider.class ), Service.load( KernelExtension.class ),
-                    Service.load( CacheProvider.class ) );
+                    Service.load( CacheProvider.class ), Service.load( TransactionInterceptorProvider.class ) );
             this.verifier = recoveryVerifier;
             run();
         }
@@ -99,12 +100,12 @@ public class TestRecoveryVerification
             new TestGraphDatabase( dir, failingVerifier );
             fail( "Was expecting recovery exception" );
         }
-        catch ( LifecycleException e )
+        catch ( RuntimeException e )
         {
-            assertEquals( RecoveryVerificationException.class, e.getCause().getClass() );
+            assertEquals( RecoveryVerificationException.class, e.getCause().getCause().getClass() );
         }
     }
-    
+
     @Test
     public void recovered2PCRecordsShouldBeWrittenInRisingTxIdOrder() throws Exception
     {

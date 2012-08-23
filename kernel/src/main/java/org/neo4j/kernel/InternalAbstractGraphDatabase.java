@@ -236,7 +236,6 @@ public abstract class InternalAbstractGraphDatabase
         try
         {
             life.start();
-            System.out.println( "Lifecycle start complete" );
         }
         catch( Throwable throwable )
         {
@@ -244,7 +243,6 @@ public abstract class InternalAbstractGraphDatabase
 
             shutdown();
 
-//            throw new IllegalStateException( "Startup failed", throwable );
             throw new RuntimeException( throwable );
         }
     }

@@ -72,7 +72,6 @@ public class ConfigurationDefaults
     public ConfigurationDefaults(Class<?>... settingsClasses)
     {
         this( Iterables.iterable( settingsClasses ));
-        System.out.println( "hey" );
     }
 
     public ConfigurationDefaults( Iterable<Class<?>> settingsClasses )
@@ -84,11 +83,9 @@ public class ConfigurationDefaults
 	public Map<String,String> apply(Map<String,String> config)
     {
         Map<String, String> configuration = new HashMap<String,String>(config);
-        System.out.println( "applying" );
         // Go through all settings and apply defaults
         for( Class<?> settingsClass : settingsClasses )
         {
-            System.out.println("Current setttings class is "+settingsClass);
         	for( Pair<Field, GraphDatabaseSetting> field : fieldHarvester.findStatic(settingsClass, GraphDatabaseSetting.class) )
             {
         		String defaultValue;
