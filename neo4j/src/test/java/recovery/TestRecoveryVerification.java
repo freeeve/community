@@ -19,12 +19,21 @@
  */
 package recovery;
 
+import static java.nio.ByteBuffer.allocate;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.kernel.impl.transaction.xaframework.LogIoUtils.readEntry;
+import static org.neo4j.kernel.impl.transaction.xaframework.LogIoUtils.readLogHeader;
+import static recovery.CreateTransactionsAndDie.produceNonCleanDbWhichWillRecover2PCsOnStartup;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
@@ -42,13 +51,6 @@ import org.neo4j.kernel.impl.transaction.xaframework.RecoveryVerifier;
 import org.neo4j.kernel.impl.transaction.xaframework.TransactionInfo;
 import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 import org.neo4j.kernel.impl.util.DumpLogicalLog.CommandFactory;
-import org.neo4j.kernel.lifecycle.LifecycleException;
-
-import static java.nio.ByteBuffer.*;
-import static org.junit.Assert.*;
-import static org.neo4j.helpers.collection.MapUtil.*;
-import static org.neo4j.kernel.impl.transaction.xaframework.LogIoUtils.*;
-import static recovery.CreateTransactionsAndDie.*;
 
 public class TestRecoveryVerification
 {
