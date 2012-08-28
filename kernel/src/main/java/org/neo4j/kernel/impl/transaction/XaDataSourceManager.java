@@ -30,9 +30,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.helpers.Listeners;
 import org.neo4j.helpers.UTF8;
@@ -48,27 +50,28 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
  * All datasources that have been defined in the XA data source configuration
  * file or manually added will be created and registered here. A mapping between
  * "name", "data source" and "branch id" is kept by this manager.
- * <p>
+ * <p/>
  * Use the {@link #getXaDataSource} to obtain the instance of a datasource that
  * has been defined in the XA data source configuration.
  *
  * @see XaDataSource
  */
 public class XaDataSourceManager
-    implements Lifecycle
+        implements Lifecycle
 {
     private static Logger log = Logger.getLogger( XaDataSourceManager.class.getName() );
 
     // key = data source name, value = data source
     private final Map<String, XaDataSource> dataSources =
-        new HashMap<String, XaDataSource>();
+            new HashMap<String, XaDataSource>();
     // key = branchId, value = data source
     private final Map<String, XaDataSource> branchIdMapping =
-        new HashMap<String, XaDataSource>();
+            new HashMap<String, XaDataSource>();
     // key = data source name, value = branchId
     private final Map<String, byte[]> sourceIdMapping =
-        new HashMap<String, byte[]>();
-    private Iterable<DataSourceRegistrationListener> dsRegistrationListeners = Listeners.<DataSourceRegistrationListener>newListeners();
+            new HashMap<String, byte[]>();
+    private Iterable<DataSourceRegistrationListener> dsRegistrationListeners = Listeners
+            .<DataSourceRegistrationListener>newListeners();
 
     private StringLogger msgLog;
 
@@ -102,30 +105,30 @@ public class XaDataSourceManager
 
     @Override
     public void init()
-        throws Throwable
+            throws Throwable
     {
     }
 
     @Override
     public void start()
-        throws Throwable
+            throws Throwable
     {
     }
 
     @Override
     public void stop()
-        throws Throwable
+            throws Throwable
     {
     }
 
     @Override
     public void shutdown()
-        throws Throwable
+            throws Throwable
     {
         branchIdMapping.clear();
         sourceIdMapping.clear();
         Iterator<XaDataSource> itr = dataSources.values().iterator();
-        while( itr.hasNext() )
+        while ( itr.hasNext() )
         {
             XaDataSource dataSource = itr.next();
             dataSource.close();
@@ -145,6 +148,14 @@ public class XaDataSourceManager
         return dataSources.get( name );
     }
 
+    /**
+     * Used to access the Neo DataSource. This should be replaced with
+     * DataSource registration listeners instead, since this DataSource is not
+     * always guaranteed to return anything (in HA case).
+     *
+     * @return
+     */
+    @Deprecated
     public NeoStoreXaDataSource getNeoStoreDataSource()
     {
         return (NeoStoreXaDataSource) getXaDataSource( Config.DEFAULT_DATA_SOURCE_NAME );
@@ -158,14 +169,14 @@ public class XaDataSourceManager
         dataSources.put( dataSource.getName(), dataSource );
         branchIdMapping.put( UTF8.decode( dataSource.getBranchId() ), dataSource );
         sourceIdMapping.put( dataSource.getName(), dataSource.getBranchId() );
-        Listeners.notifyListeners(dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
+        Listeners.notifyListeners( dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
         {
             @Override
             public void notify( DataSourceRegistrationListener listener )
             {
                 listener.registeredDataSource( dataSource );
             }
-        });
+        } );
     }
 
     /**
@@ -175,64 +186,64 @@ public class XaDataSourceManager
     {
         final XaDataSource dataSource = dataSources.get( name );
         byte branchId[] = getBranchId(
-            dataSource.getXaConnection().getXaResource() );
+                dataSource.getXaConnection().getXaResource() );
         dataSources.remove( name );
         branchIdMapping.remove( UTF8.decode( branchId ) );
         sourceIdMapping.remove( name );
-        Listeners.notifyListeners(dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
+        Listeners.notifyListeners( dsRegistrationListeners, new Listeners.Notification<DataSourceRegistrationListener>()
         {
             @Override
             public void notify( DataSourceRegistrationListener listener )
             {
                 listener.unregisteredDataSource( dataSource );
             }
-        });
+        } );
         dataSource.close();
     }
 
     synchronized byte[] getBranchId( XAResource xaResource )
     {
-        if( xaResource instanceof XaResource )
+        if ( xaResource instanceof XaResource )
         {
-            byte branchId[] = ( (XaResource) xaResource ).getBranchId();
-            if( branchId != null )
+            byte branchId[] = ((XaResource) xaResource).getBranchId();
+            if ( branchId != null )
             {
                 return branchId;
             }
         }
         Iterator<Map.Entry<String, XaDataSource>> itr =
-            dataSources.entrySet().iterator();
-        while( itr.hasNext() )
+                dataSources.entrySet().iterator();
+        while ( itr.hasNext() )
         {
             Map.Entry<String, XaDataSource> entry = itr.next();
             XaDataSource dataSource = entry.getValue();
             XAResource resource = dataSource.getXaConnection().getXaResource();
             try
             {
-                if( resource.isSameRM( xaResource ) )
+                if ( resource.isSameRM( xaResource ) )
                 {
                     String name = entry.getKey();
                     return sourceIdMapping.get( name );
                 }
             }
-            catch( XAException e )
+            catch ( XAException e )
             {
                 throw new TransactionFailureException(
-                    "Unable to check is same resource", e );
+                        "Unable to check is same resource", e );
             }
         }
         throw new TransactionFailureException(
-            "Unable to find mapping for XAResource[" + xaResource + "]" );
+                "Unable to find mapping for XAResource[" + xaResource + "]" );
     }
 
     private XaDataSource getDataSource( byte branchId[] )
     {
         XaDataSource dataSource = branchIdMapping.get( UTF8.decode( branchId ) );
-        if( dataSource == null )
+        if ( dataSource == null )
         {
             throw new TransactionFailureException(
-                "No mapping found for branchId[0x" +
-                UTF8.decode( branchId ) + "]" );
+                    "No mapping found for branchId[0x" +
+                            UTF8.decode( branchId ) + "]" );
         }
         return dataSource;
     }
@@ -252,53 +263,53 @@ public class XaDataSourceManager
     {
         // contains NonCompletedTransaction that needs to be committed
         List<NonCompletedTransaction> commitList =
-            new ArrayList<NonCompletedTransaction>();
+                new ArrayList<NonCompletedTransaction>();
 
         // contains Xids that should be rolledback
         final List<Xid> rollbackList = new LinkedList<Xid>();
 
         // key = Resource(branchId) value = XAResource
         final Map<Resource, XaDataSource> resourceMap =
-            new HashMap<Resource, XaDataSource>();
+                new HashMap<Resource, XaDataSource>();
         buildRecoveryInfo( commitList, rollbackList, resourceMap,
-                           danglingRecordList );
+                danglingRecordList );
         // invoke recover on all xa resources found
         final List<Xid> recoveredXidsList = new LinkedList<Xid>();
 
         try
         {
 
-            for( XaDataSource xaDataSource : dataSources.values() )
+            for ( XaDataSource xaDataSource : dataSources.values() )
             {
                 XAResource xaRes = xaDataSource.getXaConnection().getXaResource();
                 Xid xids[] = xaRes.recover( XAResource.TMNOFLAGS );
 
-                for( int i = 0; i < xids.length; i++ )
+                for ( int i = 0; i < xids.length; i++ )
                 {
-                    if( XidImpl.isThisTm( xids[ i ].getGlobalTransactionId() ) )
+                    if ( XidImpl.isThisTm( xids[i].getGlobalTransactionId() ) )
                     {
                         // linear search
-                        if( rollbackList.contains( xids[ i ] ) )
+                        if ( rollbackList.contains( xids[i] ) )
                         {
-                            log.fine( "Found pre commit " + xids[ i ]
-                                      + " rolling back ... " );
-                            msgLog.logMessage( "TM: Found pre commit " + xids[ i ] + " rolling back ... ", true );
-                            rollbackList.remove( xids[ i ] );
-                            xaRes.rollback( xids[ i ] );
+                            log.fine( "Found pre commit " + xids[i]
+                                    + " rolling back ... " );
+                            msgLog.logMessage( "TM: Found pre commit " + xids[i] + " rolling back ... ", true );
+                            rollbackList.remove( xids[i] );
+                            xaRes.rollback( xids[i] );
                         }
                         else
                         {
-                            Resource resource = new Resource( xids[ i ].getBranchQualifier() );
-                            if( !resourceMap.containsKey( resource ) )
+                            Resource resource = new Resource( xids[i].getBranchQualifier() );
+                            if ( !resourceMap.containsKey( resource ) )
                             {
                                 resourceMap.put( resource, xaDataSource );
                             }
-                            recoveredXidsList.add( xids[ i ] );
+                            recoveredXidsList.add( xids[i] );
                         }
                     }
                     else
                     {
-                        log.warning( "Unknown xid: " + xids[ i ] );
+                        log.warning( "Unknown xid: " + xids[i] );
                     }
                 }
             }
@@ -308,28 +319,28 @@ public class XaDataSourceManager
 
             // go through and commit
             Iterator<NonCompletedTransaction> commitItr = commitList.iterator();
-            while( commitItr.hasNext() )
+            while ( commitItr.hasNext() )
             {
                 NonCompletedTransaction nct = commitItr.next();
                 int seq = nct.getSequenceNumber();
                 Xid xids[] = nct.getXids();
                 log.fine( "Marked as commit tx-seq[" + seq +
-                          "] branch length: " + xids.length );
-                for( Xid xid : xids )
+                        "] branch length: " + xids.length );
+                for ( Xid xid : xids )
                 {
-                    if( !recoveredXidsList.contains( xid ) )
+                    if ( !recoveredXidsList.contains( xid ) )
                     {
                         log.fine( "Tx-seq[" + seq + "][" + xid +
-                                  "] not found in recovered xid list, "
-                                  + "assuming already committed" );
+                                "] not found in recovered xid list, "
+                                + "assuming already committed" );
                         continue;
                     }
                     recoveredXidsList.remove( xid );
                     Resource resource = new Resource( xid.getBranchQualifier() );
-                    if( !resourceMap.containsKey( resource ) )
+                    if ( !resourceMap.containsKey( resource ) )
                     {
                         final TransactionFailureException ex = new TransactionFailureException(
-                            "Couldn't find XAResource for " + xid );
+                                "Couldn't find XAResource for " + xid );
                         throw logAndReturn( "TM: recovery error", ex );
                     }
                     log.fine( "Commiting tx seq[" + seq + "][" + xid + "] ... " );
@@ -340,45 +351,45 @@ public class XaDataSourceManager
 
             // rollback the rest
             Iterator<Xid> rollbackItr = recoveredXidsList.iterator();
-            while( rollbackItr.hasNext() )
+            while ( rollbackItr.hasNext() )
             {
                 Xid xid = rollbackItr.next();
                 Resource resource = new Resource( xid.getBranchQualifier() );
-                if( !resourceMap.containsKey( resource ) )
+                if ( !resourceMap.containsKey( resource ) )
                 {
                     final TransactionFailureException ex = new TransactionFailureException(
-                        "Couldn't find XAResource for " + xid );
+                            "Couldn't find XAResource for " + xid );
                     throw logAndReturn( "TM: recovery error", ex );
                 }
                 log.fine( "Rollback " + xid + " ... " );
                 msgLog.logMessage( "TM: no match found for " + xid + " removing", true );
                 resourceMap.get( resource ).getXaConnection().getXaResource().rollback( xid );
             }
-            if( rollbackList.size() > 0 )
+            if ( rollbackList.size() > 0 )
             {
                 log.fine( "TxLog contained unresolved "
-                          + "xids that needed rollback. They couldn't be matched to "
-                          + "any of the XAResources recover list. " + "Assuming "
-                          + rollbackList.size()
-                          + " transactions already rolled back." );
+                        + "xids that needed rollback. They couldn't be matched to "
+                        + "any of the XAResources recover list. " + "Assuming "
+                        + rollbackList.size()
+                        + " transactions already rolled back." );
                 msgLog.logMessage( "TM: no match found for in total " + rollbackList.size() +
-                                   " transaction that should have been rolled back", true );
+                        " transaction that should have been rolled back", true );
             }
 
             // Rotate the logs of the participated data sources, making sure that
             // done-records are written so that even if the tm log gets truncated,
             // which it will be after this recovery, that transaction information
             // doesn't get lost.
-            for( XaDataSource participant : MapUtil.reverse( resourceMap ).keySet() )
+            for ( XaDataSource participant : MapUtil.reverse( resourceMap ).keySet() )
             {
                 participant.rotateLogicalLog();
             }
         }
-        catch( IOException e )
+        catch ( IOException e )
         {
             throw logAndReturn( "TM: recovery failed", new TransactionFailureException( "Recovery failed.", e ) );
         }
-        catch( XAException e )
+        catch ( XAException e )
         {
             throw logAndReturn( "TM: recovery failed", new TransactionFailureException( "Recovery failed.", e ) );
         }
@@ -389,65 +400,65 @@ public class XaDataSourceManager
                                     Iterator<List<TxLog.Record>> danglingRecordList
     )
     {
-        while( danglingRecordList.hasNext() )
+        while ( danglingRecordList.hasNext() )
         {
             Iterator<TxLog.Record> dListItr =
-                danglingRecordList.next().iterator();
+                    danglingRecordList.next().iterator();
             TxLog.Record startRecord = dListItr.next();
-            if( startRecord.getType() != TxLog.TX_START )
+            if ( startRecord.getType() != TxLog.TX_START )
             {
                 throw logAndReturn( "TM error building recovery info",
-                                    new TransactionFailureException(
-                                        "First record not a start record, type="
+                        new TransactionFailureException(
+                                "First record not a start record, type="
                                         + startRecord.getType() ) );
             }
             // get branches & commit status
             HashSet<Resource> branchSet = new HashSet<Resource>();
             int markedCommit = -1;
-            while( dListItr.hasNext() )
+            while ( dListItr.hasNext() )
             {
                 TxLog.Record record = dListItr.next();
-                if( record.getType() == TxLog.BRANCH_ADD )
+                if ( record.getType() == TxLog.BRANCH_ADD )
                 {
-                    if( markedCommit != -1 )
+                    if ( markedCommit != -1 )
                     {
 
                         throw logAndReturn( "TM error building recovery info", new TransactionFailureException(
-                            "Already marked commit " + startRecord ) );
+                                "Already marked commit " + startRecord ) );
                     }
                     branchSet.add( new Resource( record.getBranchId() ) );
                 }
-                else if( record.getType() == TxLog.MARK_COMMIT )
+                else if ( record.getType() == TxLog.MARK_COMMIT )
                 {
-                    if( markedCommit != -1 )
+                    if ( markedCommit != -1 )
                     {
                         throw logAndReturn( "TM error building recovery info", new TransactionFailureException(
-                            "Already marked commit " + startRecord ) );
+                                "Already marked commit " + startRecord ) );
                     }
                     markedCommit = record.getSequenceNumber();
                 }
                 else
                 {
                     throw logAndReturn( "TM error building recovery info", new TransactionFailureException(
-                        "Illegal record type[" + record.getType() + "]" ) );
+                            "Illegal record type[" + record.getType() + "]" ) );
                 }
             }
             Iterator<Resource> resourceItr = branchSet.iterator();
             List<Xid> xids = new LinkedList<Xid>();
-            while( resourceItr.hasNext() )
+            while ( resourceItr.hasNext() )
             {
                 Resource resource = resourceItr.next();
-                if( !resourceMap.containsKey( resource ) )
+                if ( !resourceMap.containsKey( resource ) )
                 {
                     resourceMap.put( resource, getDataSource( resource.getResourceId() ) );
                 }
                 xids.add( new XidImpl( startRecord.getGlobalId(),
-                                       resource.getResourceId() ) );
+                        resource.getResourceId() ) );
             }
-            if( markedCommit != -1 ) // this xid needs to be committed
+            if ( markedCommit != -1 ) // this xid needs to be committed
             {
                 commitList.add(
-                    new NonCompletedTransaction( markedCommit, xids ) );
+                        new NonCompletedTransaction( markedCommit, xids ) );
             }
             else
             {
@@ -462,7 +473,7 @@ public class XaDataSourceManager
         {
             msgLog.logMessage( msg, exception, true );
         }
-        catch( Throwable t )
+        catch ( Throwable t )
         {
             // ignore
         }
@@ -485,7 +496,7 @@ public class XaDataSourceManager
     }
 
     private static class NonCompletedTransaction
-        implements Comparable<NonCompletedTransaction>
+            implements Comparable<NonCompletedTransaction>
     {
         private int seqNr = -1;
         private List<Xid> xidList = null;
@@ -503,7 +514,7 @@ public class XaDataSourceManager
 
         Xid[] getXids()
         {
-            return xidList.toArray( new XidImpl[ xidList.size() ] );
+            return xidList.toArray( new XidImpl[xidList.size()] );
         }
 
         @Override
@@ -525,7 +536,7 @@ public class XaDataSourceManager
 
         Resource( byte resourceId[] )
         {
-            if( resourceId == null || resourceId.length == 0 )
+            if ( resourceId == null || resourceId.length == 0 )
             {
                 throw new IllegalArgumentException( "Illegal resourceId" );
             }
@@ -540,19 +551,19 @@ public class XaDataSourceManager
         @Override
         public boolean equals( Object o )
         {
-            if( !( o instanceof Resource ) )
+            if ( !(o instanceof Resource) )
             {
                 return false;
             }
-            byte otherResourceId[] = ( (Resource) o ).getResourceId();
+            byte otherResourceId[] = ((Resource) o).getResourceId();
 
-            if( resourceId.length != otherResourceId.length )
+            if ( resourceId.length != otherResourceId.length )
             {
                 return false;
             }
-            for( int i = 0; i < resourceId.length; i++ )
+            for ( int i = 0; i < resourceId.length; i++ )
             {
-                if( resourceId[ i ] != otherResourceId[ i ] )
+                if ( resourceId[i] != otherResourceId[i] )
                 {
                     return false;
                 }
@@ -565,12 +576,12 @@ public class XaDataSourceManager
         @Override
         public int hashCode()
         {
-            if( hashCode == 0 )
+            if ( hashCode == 0 )
             {
                 int calcHash = 0;
-                for( int i = 0; i < resourceId.length; i++ )
+                for ( int i = 0; i < resourceId.length; i++ )
                 {
-                    calcHash += resourceId[ i ] << i * 8;
+                    calcHash += resourceId[i] << i * 8;
                 }
                 hashCode = 3217 * calcHash;
             }
