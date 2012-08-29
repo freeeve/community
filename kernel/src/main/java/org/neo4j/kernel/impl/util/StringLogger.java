@@ -38,7 +38,7 @@ public abstract class StringLogger
 {
     public static final String DEFAULT_NAME = "messages.log";
     public static final StringLogger SYSTEM =
-        new ActualStringLogger( new PrintWriter( System.out ) );
+            new ActualStringLogger( new PrintWriter( System.out ) );
     private static final int DEFAULT_THRESHOLD_FOR_ROTATION = 100 * 1024 * 1024;
     private static final int NUMBER_OF_OLD_LOGS_TO_KEEP = 2;
 
@@ -149,6 +149,51 @@ public abstract class StringLogger
         logMessage( msg, cause, false );
     }
 
+    public void debug( String msg )
+    {
+        // Ignore
+    }
+
+    public void debug( String msg, Throwable cause )
+    {
+        // Ignore
+    }
+
+    public boolean isDebugEnabled()
+    {
+        return false;
+    }
+
+    public void info( String msg )
+    {
+        logMessage( msg );
+    }
+
+    public void info( String msg, Throwable cause )
+    {
+        logMessage( msg, cause );
+    }
+
+    public void warn( String msg )
+    {
+        logMessage( msg );
+    }
+
+    public void warn( String msg, Throwable throwable )
+    {
+        logMessage( msg, throwable );
+    }
+
+    public void error( String msg )
+    {
+        logMessage( msg );
+    }
+
+    public void error( String msg, Throwable throwable )
+    {
+        logMessage( msg, throwable );
+    }
+
     public void logLongMessage( String msg, Visitor<LineLogger> source )
     {
         logLongMessage( msg, source, false );
@@ -202,25 +247,39 @@ public abstract class StringLogger
     public static final StringLogger DEV_NULL = new StringLogger()
     {
         @Override
-        public void logMessage( String msg, boolean flush ) {}
+        public void logMessage( String msg, boolean flush )
+        {
+        }
 
         @Override
-        public void logMessage( String msg, Throwable cause, boolean flush ) {}
+        public void logMessage( String msg, Throwable cause, boolean flush )
+        {
+        }
 
         @Override
-        public void logLongMessage( String msg, Visitor<LineLogger> source, boolean flush ) {}
+        public void logLongMessage( String msg, Visitor<LineLogger> source, boolean flush )
+        {
+        }
 
         @Override
-        protected void logLine( String line ) {}
+        protected void logLine( String line )
+        {
+        }
 
         @Override
-        public void flush() {}
+        public void flush()
+        {
+        }
 
         @Override
-        public void close() {}
+        public void close()
+        {
+        }
 
         @Override
-        public void addRotationListener( Runnable listener ) {}
+        public void addRotationListener( Runnable listener )
+        {
+        }
     };
 
     private static class ActualStringLogger extends StringLogger
@@ -375,7 +434,7 @@ public abstract class StringLogger
          * Will move:
          * messages.log.1 -> messages.log.2
          * messages.log   -> messages.log.1
-         *
+         * <p/>
          * Will delete (if exists):
          * messages.log.2
          */
@@ -387,12 +446,12 @@ public abstract class StringLogger
                 oldLogFile.delete();
             }
 
-            for ( int i = NUMBER_OF_OLD_LOGS_TO_KEEP-1; i >= 0; i-- )
+            for ( int i = NUMBER_OF_OLD_LOGS_TO_KEEP - 1; i >= 0; i-- )
             {
                 oldLogFile = new File( file.getParentFile(), file.getName() + (i == 0 ? "" : ("." + i)) );
                 if ( oldLogFile.exists() )
                 {
-                    oldLogFile.renameTo( new File( file.getParentFile(), file.getName() + "." + (i+1) ) );
+                    oldLogFile.renameTo( new File( file.getParentFile(), file.getName() + "." + (i + 1) ) );
                 }
             }
         }
@@ -408,7 +467,7 @@ public abstract class StringLogger
         {
             out.close();
         }
-        
+
         @Override
         public String toString()
         {
