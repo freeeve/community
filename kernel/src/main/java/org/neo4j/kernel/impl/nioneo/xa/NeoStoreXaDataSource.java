@@ -132,6 +132,20 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
             {
                 source.neoStore.logIdUsage( log );
             }
+        },
+        PERSISTENCE_WINDOW_POOL_STATS( "Persistence Window Pool stats:" )
+        {
+            @Override
+            void dump( NeoStoreXaDataSource source, StringLogger.LineLogger log )
+            {
+                source.neoStore.logAllWindowPoolStats( log );
+            }
+
+            @Override
+            boolean applicable( DiagnosticsPhase phase )
+            {
+                return phase.isExplicitlyRequested();
+            }
         };
 
         private final String message;
@@ -144,7 +158,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         @Override
         public void dumpDiagnostics( final NeoStoreXaDataSource source, DiagnosticsPhase phase, StringLogger log )
         {
-            if ( phase.isInitialization() || phase.isExplicitlyRequested() )
+            if ( applicable( phase ) )
             {
                 log.logLongMessage( message, new Visitor<StringLogger.LineLogger>()
                 {
@@ -156,6 +170,11 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
                     }
                 }, true );
             }
+        }
+
+        boolean applicable( DiagnosticsPhase phase )
+        {
+            return phase.isInitialization() || phase.isExplicitlyRequested();
         }
 
         abstract void dump( NeoStoreXaDataSource source, StringLogger.LineLogger log );
@@ -398,6 +417,12 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         public long getAndSetNewVersion()
         {
             return neoStore.incrementVersion();
+        }
+        
+        @Override
+        public void setVersion( long version )
+        {
+            neoStore.setVersion( version );
         }
 
         @Override

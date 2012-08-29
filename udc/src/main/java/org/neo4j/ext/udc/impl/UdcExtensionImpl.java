@@ -77,8 +77,8 @@ public class UdcExtensionImpl extends KernelExtension<UdcTimerTask>
         int interval = config.getInteger( GraphDatabaseSettings.interval );
         String hostAddress = config.get( GraphDatabaseSettings.udc_host );
 
-        UdcInformationCollector collector = new UdcInformationCollector(config, kernel);
-        UdcTimerTask task = new UdcTimerTask( hostAddress, collector.getStoreId(), collector.getCrashPing(), collector.getUdcParams());
+        UdcInformationCollector collector = new DefaultUdcInformationCollector(config, kernel);
+        UdcTimerTask task = new UdcTimerTask( hostAddress, collector);
         
         timer = new Timer( "Neo4j UDC Timer", /*isDaemon=*/true );
         timer.scheduleAtFixedRate( task, firstDelay, interval );
@@ -88,7 +88,7 @@ public class UdcExtensionImpl extends KernelExtension<UdcTimerTask>
 
     private Config loadConfig(KernelData kernel) {
         Properties udcProps = loadUdcProperties();
-        HashMap<String, String> config = new HashMap<String, String>(kernel.getConfigParams());
+        HashMap<String, String> config = new HashMap<String, String>(kernel.getConfig().getParams());
         for (Map.Entry<Object, Object> entry : udcProps.entrySet()) {
             config.put((String)entry.getKey(), (String) entry.getValue());
         }

@@ -33,8 +33,9 @@ abstract class Expression extends (Map[String, Any] => Any) {
   def declareDependencies(expectedType: AnyType): Seq[Identifier]
   def dependencies(expectedType: AnyType): Seq[Identifier] = {
     val myType = identifier.typ
-    if (!expectedType.isAssignableFrom(myType))
-      throw new SyntaxException(identifier.name + " expected to be of type " + expectedType + " but it is of type " + identifier.typ)
+    if (!expectedType.isAssignableFrom(myType) &&
+        !myType.isAssignableFrom(expectedType))
+      throw new SyntaxException("`%s` expected to be a %s but it is a %s".format(identifier.name, expectedType, identifier.typ))
     declareDependencies(expectedType)
   }
 
@@ -64,7 +65,14 @@ case class Null() extends Expression {
 }
 
 case class Add(a: Expression, b: Expression) extends Expression {
-  val identifier = Identifier(a.identifier.name + " + " + b.identifier.name, ScalarType())
+  val identifier = Identifier("%s + %s".format(a.identifier.name, b.identifier.name), myType)
+
+  private def myType = if(a.identifier.typ.isAssignableFrom(b.identifier.typ))
+    a.identifier.typ
+  else if(b.identifier.typ.isAssignableFrom(a.identifier.typ))
+    b.identifier.typ
+  else ScalarType()
+
 
   def compute(m: Map[String, Any]) = {
     val aVal = a(m)
@@ -215,7 +223,7 @@ case class Property(entity: String, property: String) extends CastableExpression
     }
   }
 
-  val identifier: Identifier = Identifier(entity + "." + property, ScalarType())
+  val identifier: Identifier = Identifier(entity + "." + property, AnyType())
   def declareDependencies(extectedType: AnyType): Seq[Identifier] = Seq(Identifier(entity, MapType()))
   def rewrite(f: (Expression) => Expression) = f(this)
   def filter(f: (Expression) => Boolean) = if(f(this))
@@ -238,7 +246,9 @@ case class Entity(entityName: String) extends CastableExpression {
 
 case class Collection(expressions:Expression*) extends CastableExpression {
   def compute(m: Map[String, Any]): Any = expressions.map(e=>e(m))
+
   val identifier: Identifier = Identifier(name, AnyIterableType())
+
   private def name = expressions.map(_.identifier.name).mkString("[", ", ", "]")
   def declareDependencies(extectedType: AnyType): Seq[Identifier] = expressions.flatMap(_.declareDependencies(AnyType()))
   def rewrite(f: (Expression) => Expression): Expression = f(Collection(expressions.map(f):_*))

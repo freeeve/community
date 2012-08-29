@@ -277,8 +277,8 @@ class CypherParserTest extends JUnitSuite with Assertions {
         returns(ReturnItem(Entity("a"), "a")))
   }
 
-  @Test def shouldHandleRegularComparison() {
-    testFrom_1_7(
+  @Test def shouldHandleRegularComparisonOld() {
+    test_1_7(
       "start a = node(1) where \"Andres\" =~ /And.*/ return a",
       Query.
         start(NodeById("a", 1)).
@@ -287,8 +287,18 @@ class CypherParserTest extends JUnitSuite with Assertions {
     )
   }
 
-  @Test def shouldHandleMultipleRegularComparison1_6() {
-    testFrom_1_7(
+  @Test def shouldHandleRegularComparison() {
+    testFrom_1_8(
+      "start a = node(1) where \"Andres\" =~ 'And.*' return a",
+      Query.
+        start(NodeById("a", 1)).
+        where(LiteralRegularExpression(Literal("Andres"), Literal("And.*"))).
+        returns(ReturnItem(Entity("a"), "a"))
+    )
+  }
+
+  @Test def shouldHandleMultipleRegularComparison1_7() {
+    test_1_7(
       """start a = node(1) where a.name =~ /And.*/ AnD a.name =~ /And.*/ return a""",
       Query.
         start(NodeById("a", 1)).
@@ -298,6 +308,16 @@ class CypherParserTest extends JUnitSuite with Assertions {
   }
 
   @Test def shouldHandleMultipleRegularComparison() {
+    testFrom_1_8(
+      """start a = node(1) where a.name =~ 'And.*' AnD a.name =~ 'And.*' return a""",
+      Query.
+        start(NodeById("a", 1)).
+        where(And(LiteralRegularExpression(Property("a", "name"), Literal("And.*")), LiteralRegularExpression(Property("a", "name"), Literal("And.*")))).
+        returns(ReturnItem(Entity("a"), "a"))
+    )
+  }
+
+  @Test def shouldHandleMultipleRegularComparison1_6() {
     test_1_6(
       """start a = node(1) where a.name =~ /And.*/ AnD a.name =~ /And.*/ return a""",
       Query.
@@ -317,9 +337,19 @@ class CypherParserTest extends JUnitSuite with Assertions {
     )
   }
 
-  @Test def shouldHandleEscapedRegexs() {
-    testFrom_1_7(
+  @Test def shouldHandleEscapedRegexs1_7() {
+    test_1_7(
       """start a = node(1) where a.name =~ /And\/.*/ return a""",
+      Query.
+        start(NodeById("a", 1)).
+        where(LiteralRegularExpression(Property("a", "name"), Literal("And\\/.*"))).
+        returns(ReturnItem(Entity("a"), "a"))
+    )
+  }
+
+  @Test def shouldHandleEscapedRegexs() {
+    testFrom_1_8(
+      """start a = node(1) where a.name =~ 'And\\/.*' return a""",
       Query.
         start(NodeById("a", 1)).
         where(LiteralRegularExpression(Property("a", "name"), Literal("And\\/.*"))).
@@ -1434,7 +1464,7 @@ class CypherParserTest extends JUnitSuite with Assertions {
     testFrom_1_8("start a = node(1) with a create (b {age : a.age * 2}) return b", q)
   }
 
-  @Test def variable_length_path_with_iterable_name() {
+  @Test def variable_length_path_with_collection_for_relationships() {
     testAll("start a=node(0) match a -[r?*1..3]-> x return x",
       Query.
         start(NodeById("a", 0)).
@@ -1882,8 +1912,8 @@ create a-[r:REL]->b
   @Test def full_path_in_create() {
     val secondQ = Query.
       start(
-        CreateRelationshipStartItem("r1", (Entity("a"),Map()), (Entity("  UNNAMED1"),Map()), "KNOWS", Map()),
-        CreateRelationshipStartItem("r2", (Entity("b"),Map()), (Entity("  UNNAMED1"),Map()), "LOVES", Map())).
+      CreateRelationshipStartItem("r1", (Entity("a"), Map()), (Entity("  UNNAMED1"), Map()), "KNOWS", Map()),
+      CreateRelationshipStartItem("r2", (Entity("  UNNAMED1"), Map()), (Entity("b"), Map()), "LOVES", Map())).
       returns()
     val q = Query.
       start(NodeById("a", 1), NodeById("b", 2)).
@@ -1902,6 +1932,14 @@ create a-[r:REL]->b
       start(CreateRelationshipStartItem("r", (Entity("a"), Map()), (Entity("  UNNAMED1"), Map()), "KNOWS", Map())).
       namedPaths(NamedPath("p", RelatedTo("a", "  UNNAMED1", "r", "KNOWS", Direction.OUTGOING, optional = false, predicate = True()))).
       returns(ReturnItem(Entity("p"), "p")))
+  }
+
+  @Test def undirected_relationship() {
+    testFrom_1_8(
+      "create (a {name:'A'})-[:KNOWS]-(b {name:'B'})",
+      Query.
+        start(CreateRelationshipStartItem("  UNNAMED1", (Entity("a"), Map("name" -> Literal("A"))), (Entity("b"), Map("name" -> Literal("B"))), "KNOWS", Map())).
+        returns())
   }
 
   @Test def relate_and_assign_to_path_identifier() {

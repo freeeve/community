@@ -207,6 +207,21 @@ public class XaLogicalLog implements LogLoader
         else
         {
             logVersion = xaTf.getCurrentVersion();
+            
+            /* This is for compensating for that, during rotation, renaming the active log
+             * file and updating the log version via xaTf isn't atomic. First the file gets
+             * renamed and then the version is updated. If a crash occurs in between those
+             * two we need to detect and repair it the next startup...
+             * and here's the code for doing that. */
+            boolean logVersionChanged = false;
+            while ( fileSystem.fileExists( getFileName( logVersion ) ) )
+            {
+                logVersion++;
+                logVersionChanged = true;
+            }
+            if ( logVersionChanged )
+                xaTf.setVersion( logVersion );
+            
             long lastTxId = xaTf.getLastCommittedTx();
             LogIoUtils.writeLogHeader( sharedBuffer, logVersion, lastTxId );
             previousLogLastCommittedTx = lastTxId;
@@ -666,19 +681,6 @@ public class XaLogicalLog implements LogLoader
         }
     }
 
-    private void deleteLogFile( String logFileName ) throws IOException
-    {
-        if ( !fileSystem.fileExists( logFileName ) )
-        {
-            throw new IOException( "Logical log[" + logFileName +
-                    "] not found" );
-        }
-        if ( !fileSystem.deleteFile( logFileName ) )
-        {
-            msgLog.warn( "Unable to delete clean logical log[" + logFileName + "]" );
-        }
-    }
-
     private void releaseCurrentLogFile() throws IOException
     {
         if ( writeBuffer != null )
@@ -715,6 +717,7 @@ public class XaLogicalLog implements LogLoader
             setActiveLog( CLEAN );
         }
 
+        xaTf.flushAll();
         String activeLogFileName = fileName + "." + logWas;
         renameLogFileToRightVersion( activeLogFileName, endPosition );
         xaTf.getAndSetNewVersion();
@@ -760,6 +763,13 @@ public class XaLogicalLog implements LogLoader
             return;
         }
         logVersion = header[0];
+        
+        /* This is for compensating for that, during rotation, renaming the active log
+         * file and updating the log version via xaTf isn't atomic. First the file gets
+         * renamed and then the version is updated. If a crash occurs in between those
+         * two we need to detect and repair it the next startup */
+        xaTf.setVersion( logVersion );
+        
         long lastCommittedTx = header[1];
         previousLogLastCommittedTx = lastCommittedTx;
         positionCache.putHeader( logVersion, previousLogLastCommittedTx );
@@ -1329,9 +1339,7 @@ public class XaLogicalLog implements LogLoader
     /**
      * Rotates this logical log. The pending transactions are moved over to a
      * new log buffer and the internal structures updated to reflect the new
-     * file offsets. The old log is either renamed or thrown away, depending on
-     * the value of the last call to {@link #setKeepLogs(boolean)}. Additional
-     * side effects include a force() of the store and increment of the log
+     * file offsets. Additional side effects include a force() of the store and increment of the log
      * version.
      * <p/>
      * Outline of how rotation happens:

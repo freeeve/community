@@ -7,7 +7,7 @@ For how to provide custom configuration to Neo4j, see <<configuration-introducti
 Neo4j utilizes two different types of caches:
 A file buffer cache and an object cache.
 The file buffer cache caches the storage file data in the same format as it is stored on the durable storage media.
-The object cache caches the nodes, relationships and properties in a format that is optimized for high traversal speeds and transactional mutation.
+The object cache caches the nodes, relationships and properties in a format that is optimized for high traversal speeds and transactional writes.
 
 
 File buffer cache
@@ -123,9 +123,6 @@ It is assigned a maximum amount of memory which the sum of all cached objects in
 Objects will be evicted from cache when the maximum size is about to be reached, instead of relying on garbage collection (GC) to make that decision.
 Here the competition with other objects in the heap as well as GC-pauses can be better controlled since the cache gets assigned a maximum heap space usage.
 The overhead of the GC resistant cache is also much smaller as well as insert/lookup times faster than for reference caches.
-
-[WARNING]
-The GC resistant cache is experimental. Production use is only advisable after extensive user testing.
 
 [TIP]
 The use of heap memory is subject to the java garbage collector -- depending on the cache type some tuning might be needed to play well with the GC at large heap sizes.

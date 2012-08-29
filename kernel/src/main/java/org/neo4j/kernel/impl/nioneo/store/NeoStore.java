@@ -254,6 +254,7 @@ public class NeoStore extends AbstractStore
         {
             return;
         }
+        super.flushAll();
         relTypeStore.flushAll();
         propStore.flushAll();
         relStore.flushAll();
@@ -593,6 +594,16 @@ public class NeoStore extends AbstractStore
         list.addAll( relStore.getAllWindowPoolStats() );
         list.addAll( relTypeStore.getAllWindowPoolStats() );
         return list;
+    }
+
+    @Override
+    public void logAllWindowPoolStats( StringLogger.LineLogger logger )
+    {
+        super.logAllWindowPoolStats( logger );
+        nodeStore.logAllWindowPoolStats( logger );
+        relStore.logAllWindowPoolStats( logger );
+        relTypeStore.logAllWindowPoolStats( logger );
+        propStore.logAllWindowPoolStats( logger );
     }
 
     public boolean isStoreOk()
