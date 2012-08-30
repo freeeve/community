@@ -68,7 +68,7 @@ public class XaFactory
         XaResourceManager rm = new XaResourceManager( xaDataSource, tf, txIdGenerator, txManager, recoveryVerifier, logicalLog );
 
         XaLogicalLog log;
-        if ( providers.shouldInterceptDeserialized() )
+        if ( providers.shouldInterceptDeserialized() && providers.hasAnyInterceptorConfigured() )
         {
             log = new InterceptingXaLogicalLog( logicalLog, rm, cf, tf, providers, logBufferFactory,
                     fileSystemAbstraction, stringLogger, pruneStrategy );

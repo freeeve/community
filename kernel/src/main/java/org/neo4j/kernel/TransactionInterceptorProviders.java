@@ -55,8 +55,7 @@ public class TransactionInterceptorProviders
         TransactionInterceptor first = null;
         for ( TransactionInterceptorProvider provider : providers )
         {
-            String prov = config.getParams().get(
-                    TransactionInterceptorProvider.class.getSimpleName() + "." + provider.name() );
+            String prov = getConfigForInterceptor( provider );
             if ( first == null )
             {
                 first = provider.create( ds, prov, resolver );
@@ -82,5 +81,20 @@ public class TransactionInterceptorProviders
     public boolean shouldInterceptDeserialized()
     {
         return config.get( GraphDatabaseSettings.intercept_deserialized_transactions ) && providers.iterator().hasNext();
+    }
+    
+    public boolean hasAnyInterceptorConfigured()
+    {
+        for ( TransactionInterceptorProvider provider : providers )
+            if ( getConfigForInterceptor( provider ) != null )
+                return true;
+        return false;
+    }
+
+    private String getConfigForInterceptor( TransactionInterceptorProvider provider )
+    {
+        String prov = config.getParams().get(
+                TransactionInterceptorProvider.class.getSimpleName() + "." + provider.name() );
+        return prov;
     }
 }
