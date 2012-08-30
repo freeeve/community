@@ -43,7 +43,7 @@ public class LogbackService
         implements Logging
 {
     private Config config;
-    private LoggerContext loggerContext;
+    private final LoggerContext loggerContext;
 
     private LifeSupport loggingLife = new LifeSupport();
     protected RestartOnChange restartOnChange;

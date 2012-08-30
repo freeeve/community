@@ -46,6 +46,7 @@ import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.graphdb.event.ErrorState;
 import org.neo4j.helpers.Exceptions;
 import org.neo4j.helpers.UTF8;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.core.KernelPanicEventGenerator;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.xaframework.ForceMode;
@@ -143,25 +144,7 @@ public class TxManager extends AbstractTransactionManager
     {
         dataSourceRegistrationListener = new TxManagerDataSourceRegistrationListener();
         xaDataSourceManager.addDataSourceRegistrationListener( dataSourceRegistrationListener );
-        // Do recovery on start - all Resources should be registered by now
-        Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
-        boolean danglingRecordFound = danglingRecordList.hasNext();
-        if ( danglingRecordFound )
-        {
-            log.info( "Unresolved transactions found, " +
-                    "recovery started ..." );
 
-            msgLog.logMessage( "TM non resolved transactions found in " + txLog.getName(), true );
-
-            // Recover DataSources
-            xaDataSourceManager.recover( danglingRecordList );
-
-            log.info( "Recovery completed, all transactions have been " +
-                    "resolved to a consistent state." );
-            msgLog.logMessage( "Recovery completed, all transactions have been " +
-                    "resolved to a consistent state." );
-        }
-        getTxLog().truncate();
     }
 
     @Override
@@ -805,7 +788,8 @@ public class TxManager extends AbstractTransactionManager
         {
             try
             {
-                if ( !tmOk )
+                // Assuming here that the last datasource to register is the Neo one
+                if ( !tmOk && Config.DEFAULT_DATA_SOURCE_NAME.equals( ds.getName() ))
                 {
                     txThreadMap = new ConcurrentHashMap<Thread, TransactionImpl>();
                     logSwitcherFileName = txLogDir + separator + "active_tx_log";
@@ -862,6 +846,25 @@ public class TxManager extends AbstractTransactionManager
                         throw logAndReturn( "TM startup failure",
                                 new TransactionFailureException( "Unable to start TM", e ) );
                     }
+                    // Do recovery on start - all Resources should be registered by now
+                    Iterator<List<TxLog.Record>> danglingRecordList = txLog.getDanglingRecords();
+                    boolean danglingRecordFound = danglingRecordList.hasNext();
+                    if ( danglingRecordFound )
+                    {
+                        log.info( "Unresolved transactions found, " +
+                                "recovery started ..." );
+
+                        msgLog.logMessage( "TM non resolved transactions found in " + txLog.getName(), true );
+
+                        // Recover DataSources
+                        xaDataSourceManager.recover( danglingRecordList );
+
+                        log.info( "Recovery completed, all transactions have been " +
+                                "resolved to a consistent state." );
+                        msgLog.logMessage( "Recovery completed, all transactions have been " +
+                                "resolved to a consistent state." );
+                    }
+                    getTxLog().truncate();
                 }
             }
             catch ( Throwable t )
