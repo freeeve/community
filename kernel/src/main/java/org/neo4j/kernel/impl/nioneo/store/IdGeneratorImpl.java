@@ -308,7 +308,7 @@ public class IdGeneratorImpl implements IdGenerator
      * @throws IOException
      *             If unable to close this id generator
      */
-    public synchronized void close( boolean shutdown )
+    public synchronized void close()
     {
         if ( highId.get() == -1 )
         {
@@ -594,7 +594,7 @@ public class IdGeneratorImpl implements IdGenerator
             System.out.print( " " + itr.next() );
         }
         System.out.println( "\nNext free id: " + highId );
-        close( true );
+        close();
     }
 
     public synchronized long getNumberOfIdsInUse()

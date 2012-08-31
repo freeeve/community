@@ -34,8 +34,7 @@ public class DefaultIdGeneratorFactory
 {
     private final Map<IdType, IdGenerator> generators = new HashMap<IdType, IdGenerator>();
 
-    public IdGenerator open( FileSystemAbstraction fs, String fileName, int grabSize, IdType idType,
-            long highestIdInUse, boolean startup )
+    public IdGenerator open( FileSystemAbstraction fs, String fileName, int grabSize, IdType idType )
     {
         IdGenerator generator = new IdGeneratorImpl( fs, fileName, grabSize, idType.getMaxValue(), idType.allowAggressiveReuse() );
         generators.put( idType, generator );

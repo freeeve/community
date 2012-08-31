@@ -33,9 +33,9 @@ import java.util.logging.Logger;
 import org.neo4j.graphdb.factory.GraphDatabaseSetting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.UTF8;
-import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.IdGeneratorFactory;
 import org.neo4j.kernel.IdType;
+import org.neo4j.kernel.InternalAbstractGraphDatabase;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.core.ReadOnlyDbException;
 import org.neo4j.kernel.impl.util.StringLogger;
@@ -580,8 +580,8 @@ public abstract class CommonAbstractStore
 
     protected IdGenerator openIdGenerator( String fileName, int grabSize, boolean firstTime )
     {
-        return idGeneratorFactory.open( fileSystemAbstraction, fileName, grabSize, getIdType(),
-                figureOutHighestIdInUse(), firstTime );
+        return idGeneratorFactory.open( fileSystemAbstraction, fileName, grabSize, getIdType()
+        );
     }
 
     protected abstract long figureOutHighestIdInUse();
@@ -611,7 +611,7 @@ public abstract class CommonAbstractStore
     {
         if ( idGenerator != null )
         {
-            idGenerator.close( false );
+            idGenerator.close();
         }
     }
 
@@ -651,7 +651,7 @@ public abstract class CommonAbstractStore
         {
             recordSize = ((AbstractStore) this).getRecordSize();
         }
-        idGenerator.close( true );
+        idGenerator.close();
         boolean success = false;
         IOException storedIoe = null;
         // hack for WINBLOWS

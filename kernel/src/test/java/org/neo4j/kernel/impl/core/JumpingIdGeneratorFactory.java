@@ -42,8 +42,7 @@ public class JumpingIdGeneratorFactory implements IdGeneratorFactory
         this.sizePerJump = sizePerJump;
     }
 
-    public IdGenerator open( FileSystemAbstraction fs, String fileName, int grabSize, IdType idType,
-            long highestIdInUse, boolean startup )
+    public IdGenerator open( FileSystemAbstraction fs, String fileName, int grabSize, IdType idType )
     {
         return get( idType );
     }
@@ -121,7 +120,7 @@ public class JumpingIdGeneratorFactory implements IdGeneratorFactory
         }
 
         @Override
-        public void close( boolean shutdown )
+        public void close()
         {
         }
 
