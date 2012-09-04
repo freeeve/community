@@ -36,7 +36,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.index.IndexProvider;
 import org.neo4j.kernel.EmbeddedGraphDatabase;
 import org.neo4j.kernel.IdGeneratorFactory;
-import org.neo4j.kernel.KernelExtension;
+import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.cache.CacheProvider;
 import org.neo4j.kernel.impl.nioneo.store.FileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
@@ -55,7 +55,7 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
     private static final File PATH = new File( "target/test-data/impermanent-db" );
     private static final AtomicInteger ID = new AtomicInteger();
     private EphemeralFileSystemAbstraction fileSystemAbstraction;
-    
+
     static
     {
         try
@@ -73,9 +73,10 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
         super( path(), withoutMemmap( params ) );
     }
 
-    public ImpermanentGraphDatabase( Map<String,String> params, Iterable<IndexProvider> indexProviders,
-            Iterable<KernelExtension> kernelExtensions, Iterable<CacheProvider> cacheProviders,
-            Iterable<TransactionInterceptorProvider> transactionInterceptorProviders )
+    public ImpermanentGraphDatabase( Map<String, String> params, Iterable<IndexProvider> indexProviders,
+                                     Iterable<KernelExtensionFactory<?>> kernelExtensions,
+                                     Iterable<CacheProvider> cacheProviders,
+                                     Iterable<TransactionInterceptorProvider> transactionInterceptorProviders )
     {
         super( path(), withoutMemmap( params ), indexProviders, kernelExtensions, cacheProviders,
                 transactionInterceptorProviders );
@@ -92,7 +93,7 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
     {
         return new EphemeralIdGenerator.Factory();
     }
-    
+
     private static Map<String, String> withoutMemmap( Map<String, String> params )
     {   // Because EphemeralFileChannel doesn't support memorymapping
         Map<String, String> result = new HashMap<String, String>( params );
@@ -104,13 +105,13 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
     {
         this( new HashMap<String, String>() );
     }
-    
+
     @Override
     protected boolean isEphemeral()
     {
         return true;
     }
-    
+
     @Override
     protected Logging createStringLogger()
     {
@@ -118,14 +119,17 @@ public class ImpermanentGraphDatabase extends EmbeddedGraphDatabase
         life.add( logging );
         return logging;
     }
-    
+
     private static String path()
     {
         File path = null;
         do
         {
             path = new File( PATH, String.valueOf( ID.get() ) );
-            if ( path.exists() ) ID.incrementAndGet();
+            if ( path.exists() )
+            {
+                ID.incrementAndGet();
+            }
         }
         while ( path.exists() );
         return path.getAbsolutePath();

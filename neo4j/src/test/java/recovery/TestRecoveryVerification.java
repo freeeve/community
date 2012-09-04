@@ -41,8 +41,9 @@ import org.neo4j.graphdb.factory.GraphDatabaseSetting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.index.IndexProvider;
 import org.neo4j.helpers.Service;
+import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.kernel.InternalAbstractGraphDatabase;
-import org.neo4j.kernel.KernelExtension;
+import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.impl.cache.CacheProvider;
 import org.neo4j.kernel.impl.transaction.xaframework.LogEntry;
 import org.neo4j.kernel.impl.transaction.xaframework.LogEntry.TwoPhaseCommit;
@@ -60,19 +61,20 @@ public class TestRecoveryVerification
 
         TestGraphDatabase( String dir, RecoveryVerifier recoveryVerifier )
         {
-            super( dir, stringMap(), Service.load( IndexProvider.class ), Service.load( KernelExtension.class ),
+            super( dir, stringMap(), Service.load( IndexProvider.class ), Iterables.<KernelExtensionFactory<?>,
+                    KernelExtensionFactory>cast( Service.load( KernelExtensionFactory.class ) ),
                     Service.load( CacheProvider.class ), Service.load( TransactionInterceptorProvider.class ) );
             this.verifier = recoveryVerifier;
             run();
         }
-        
+
         @Override
         protected RecoveryVerifier createRecoveryVerifier()
         {
             return this.verifier;
         }
     }
-    
+
     @Test
     public void recoveryVerificationShouldBeCalledForRecoveredTransactions() throws Exception
     {
@@ -96,7 +98,7 @@ public class TestRecoveryVerification
                 return false;
             }
         };
-        
+
         try
         {
             new TestGraphDatabase( dir, failingVerifier );
@@ -104,7 +106,7 @@ public class TestRecoveryVerification
         }
         catch ( RuntimeException e )
         {
-            assertEquals( RecoveryVerificationException.class, e.getCause().getCause().getClass() );
+            assertEquals( RecoveryVerificationException.class, e.getCause().getClass() );
         }
     }
 
@@ -114,7 +116,8 @@ public class TestRecoveryVerification
         int count = 10;
         String dir = produceNonCleanDbWhichWillRecover2PCsOnStartup( "order", count );
         // Just make it recover
-        new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( dir ).setConfig( GraphDatabaseSettings.keep_logical_logs, GraphDatabaseSetting.TRUE ).newGraphDatabase().shutdown();
+        new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( dir ).setConfig( GraphDatabaseSettings
+                .keep_logical_logs, GraphDatabaseSetting.TRUE ).newGraphDatabase().shutdown();
         verifyOrderedRecords( dir, count );
     }
 
@@ -135,8 +138,14 @@ public class TestRecoveryVerification
                 if ( entry instanceof TwoPhaseCommit )
                 {
                     long txId = ((TwoPhaseCommit) entry).getTxId();
-                    if ( lastOne == -1 ) lastOne = txId;
-                    else assertEquals( lastOne+1, txId );
+                    if ( lastOne == -1 )
+                    {
+                        lastOne = txId;
+                    }
+                    else
+                    {
+                        assertEquals( lastOne + 1, txId );
+                    }
                     lastOne = txId;
                     counted++;
                 }
@@ -148,15 +157,18 @@ public class TestRecoveryVerification
             file.close();
         }
     }
-    
+
     private static class CountingRecoveryVerifier implements RecoveryVerifier
     {
         private int count2PC;
-        
+
         @Override
         public boolean isValid( TransactionInfo txInfo )
         {
-            if ( !txInfo.isOnePhase() ) count2PC++;
+            if ( !txInfo.isOnePhase() )
+            {
+                count2PC++;
+            }
             return true;
         }
     }

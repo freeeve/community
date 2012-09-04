@@ -20,17 +20,10 @@
 
 package org.neo4j.kernel;
 
-import static org.neo4j.helpers.Exceptions.launderedException;
-
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -53,11 +46,14 @@ import org.neo4j.graphdb.factory.GraphDatabaseSetting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.graphdb.index.IndexProvider;
+import org.neo4j.graphdb.index.IndexProviders;
 import org.neo4j.helpers.DaemonThreadFactory;
 import org.neo4j.helpers.Service;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ConfigurationChange;
 import org.neo4j.kernel.configuration.ConfigurationChangeListener;
+import org.neo4j.kernel.extension.KernelExtensionFactory;
+import org.neo4j.kernel.extension.KernelExtensions;
 import org.neo4j.kernel.guard.Guard;
 import org.neo4j.kernel.impl.cache.Cache;
 import org.neo4j.kernel.impl.cache.CacheProvider;
@@ -88,7 +84,6 @@ import org.neo4j.kernel.impl.nioneo.xa.NioNeoDbPersistenceSource;
 import org.neo4j.kernel.impl.persistence.PersistenceManager;
 import org.neo4j.kernel.impl.persistence.PersistenceSource;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
-import org.neo4j.kernel.impl.transaction.DataSourceRegistrationListener;
 import org.neo4j.kernel.impl.transaction.LockManager;
 import org.neo4j.kernel.impl.transaction.LockManagerImpl;
 import org.neo4j.kernel.impl.transaction.LockType;
@@ -105,7 +100,6 @@ import org.neo4j.kernel.impl.transaction.xaframework.LogPruneStrategies;
 import org.neo4j.kernel.impl.transaction.xaframework.RecoveryVerifier;
 import org.neo4j.kernel.impl.transaction.xaframework.TransactionInterceptorProvider;
 import org.neo4j.kernel.impl.transaction.xaframework.TxIdGenerator;
-import org.neo4j.kernel.impl.transaction.xaframework.XaDataSource;
 import org.neo4j.kernel.impl.transaction.xaframework.XaFactory;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.kernel.info.DiagnosticsManager;
@@ -113,6 +107,8 @@ import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.kernel.lifecycle.LifecycleException;
+import org.neo4j.kernel.lifecycle.LifecycleListener;
+import org.neo4j.kernel.lifecycle.LifecycleStatus;
 import org.neo4j.kernel.logging.ClassicLoggingService;
 import org.neo4j.kernel.logging.LogbackService;
 import org.neo4j.kernel.logging.Loggers;
@@ -121,13 +117,12 @@ import org.neo4j.tooling.GlobalGraphOperations;
 import org.slf4j.impl.StaticLoggerBinder;
 
 /**
- * Exposes the methods {@link #getManagementBeans(Class)}() a.s.o.
+ * Base implementation of GraphDatabaseService. Responsible for creating services, handling dependencies between them,
+ * and lifecycle management of these.
  */
 public abstract class InternalAbstractGraphDatabase
         extends AbstractGraphDatabase implements GraphDatabaseService, GraphDatabaseAPI
 {
-
-    private InternalAbstractGraphDatabase.DefaultKernelExtensionLoader kernelExtensionLoader;
 
     public static class Configuration
     {
@@ -155,7 +150,7 @@ public abstract class InternalAbstractGraphDatabase
     protected String storeDir;
     protected Map<String, String> params;
     private TransactionInterceptorProviders transactionInterceptorProviders;
-    private final Iterable<KernelExtension> kernelExtensions;
+    private final KernelExtensions kernelExtensions;
     protected StoreId storeId;
     private final TransactionBuilder defaultTxBuilder = new TransactionBuilderImpl( this, ForceMode.forced );
 
@@ -198,12 +193,14 @@ public abstract class InternalAbstractGraphDatabase
     protected KernelData extensions;
     protected Caches caches;
 
+    private Throwable recoveryException;
+
     protected final LifeSupport life = new LifeSupport();
     private final Map<String, CacheProvider> cacheProviders;
 
     protected InternalAbstractGraphDatabase( String storeDir, Map<String, String> params,
                                              Iterable<IndexProvider> indexProviders,
-                                             Iterable<KernelExtension> kernelExtensions,
+                                             Iterable<KernelExtensionFactory<?>> kernelExtensions,
                                              Iterable<CacheProvider> cacheProviders,
                                              Iterable<TransactionInterceptorProvider> transactionInterceptorProviders )
     {
@@ -216,9 +213,9 @@ public abstract class InternalAbstractGraphDatabase
 
         // SPI - provided services
         this.indexProviders = indexProviders;
-        this.kernelExtensions = kernelExtensions;
         this.cacheProviders = mapCacheProviders( cacheProviders );
-        config = new Config( params, getSettingsClasses() );
+        config = new Config( params, getSettingsClasses( kernelExtensions ) );
+        this.kernelExtensions = new KernelExtensions( kernelExtensions, config, dependencyResolver );
         this.transactionInterceptorProviders = new TransactionInterceptorProviders( transactionInterceptorProviders,
                 dependencyResolver );
 
@@ -241,7 +238,14 @@ public abstract class InternalAbstractGraphDatabase
 
         try
         {
+            registerRecovery();
+
             life.start();
+
+            if ( recoveryException != null )
+            {
+                throw recoveryException;
+            }
         }
         catch ( Throwable throwable )
         {
@@ -251,6 +255,40 @@ public abstract class InternalAbstractGraphDatabase
 
             throw new RuntimeException( throwable );
         }
+    }
+
+    protected void registerRecovery()
+    {
+        life.addLifecycleListener( new LifecycleListener()
+        {
+            @Override
+            public void notifyStatusChanged( Object instance, LifecycleStatus from, LifecycleStatus to )
+            {
+                if ( instance instanceof KernelExtensions && to.equals( LifecycleStatus.STARTED ) && txManager
+                        instanceof TxManager )
+                {
+                    try
+                    {
+                        InternalAbstractGraphDatabase.this.doRecovery();
+                    }
+                    catch ( Throwable throwable )
+                    {
+                        recoveryException = throwable;
+                    }
+                }
+            }
+        } );
+
+    }
+
+    protected void doRecovery() throws Throwable
+    {
+        txManager.doRecovery();
+
+        NeoStoreXaDataSource neoStoreDataSource = xaDataSourceManager.getNeoStoreDataSource();
+        storeId = neoStoreDataSource.getStoreId();
+        KernelDiagnostics.register( diagnosticsManager, InternalAbstractGraphDatabase.this,
+                neoStoreDataSource );
     }
 
     protected void create()
@@ -271,7 +309,7 @@ public abstract class InternalAbstractGraphDatabase
         {
             // Don't override explicit settings
             String key = autoConfig.getKey();
-            if( !params.containsKey( key ) )
+            if ( !params.containsKey( key ) )
             {
                 configParams.put( key, autoConfig.getValue() );
             }
@@ -303,7 +341,6 @@ public abstract class InternalAbstractGraphDatabase
         txHook = createTxHook();
 
         xaDataSourceManager = life.add( createXaDataSourceManager() );
-        xaDataSourceManager.addDataSourceRegistrationListener( new StuffToDoAfterRecovery() );
 
         guard = config.get( Configuration.execution_guard_enabled ) ? new Guard( msgLog ) : null;
 
@@ -395,8 +432,8 @@ public abstract class InternalAbstractGraphDatabase
 
         if ( config.get( Configuration.load_kernel_extensions ) )
         {
-            kernelExtensionLoader = new DefaultKernelExtensionLoader( extensions );
-            life.add( kernelExtensionLoader );
+//            kernelExtensionLoader = new DefaultKernelExtensionLoader( extensions );
+            life.add( kernelExtensions );
         }
 
         if ( indexProviders == null )
@@ -421,8 +458,6 @@ public abstract class InternalAbstractGraphDatabase
                 fileSystem, keepLogicalLogsConfig ) );
 
         createNeoDataSource();
-
-        life.add( new StuffToDoAfterRecovery() );
 
         life.add( new MonitorGc( config, msgLog ) );
 
@@ -796,28 +831,6 @@ public abstract class InternalAbstractGraphDatabase
         }
     }
 
-    @Override
-    public final <T> T getManagementBean( Class<T> type )
-    {
-        return getSingleManagementBean( type );
-    }
-
-    @Override
-    public final <T> T getSingleManagementBean( Class<T> type )
-    {
-        Iterator<T> beans = getManagementBeans( type ).iterator();
-        if ( beans.hasNext() )
-        {
-            T bean = beans.next();
-            if ( beans.hasNext() )
-            {
-                throw new NotFoundException( "More than one management bean for " + type.getName() );
-            }
-            return bean;
-        }
-        return null;
-    }
-
     protected boolean isEphemeral()
     {
         return false;
@@ -914,58 +927,6 @@ public abstract class InternalAbstractGraphDatabase
     }
 
     @Override
-    public <T> Collection<T> getManagementBeans( Class<T> beanClass )
-    {
-        KernelExtension<?> jmx = Service.load( KernelExtension.class, "kernel jmx" );
-        if ( jmx != null )
-        {
-            Method getManagementBeans = null;
-            Object state = jmx.getState( extensions );
-            if ( state != null )
-            {
-                try
-                {
-                    getManagementBeans = state.getClass().getMethod( "getManagementBeans", Class.class );
-                }
-                catch ( Exception e )
-                {
-                    // getManagementBean will be null
-                }
-            }
-            if ( getManagementBeans != null )
-            {
-                try
-                {
-                    @SuppressWarnings("unchecked") Collection<T> result =
-                            (Collection<T>) getManagementBeans.invoke( state, beanClass );
-                    if ( result == null )
-                    {
-                        return Collections.emptySet();
-                    }
-                    return result;
-                }
-                catch ( InvocationTargetException ex )
-                {
-                    Throwable cause = ex.getTargetException();
-                    if ( cause instanceof Error )
-                    {
-                        throw (Error) cause;
-                    }
-                    if ( cause instanceof RuntimeException )
-                    {
-                        throw (RuntimeException) cause;
-                    }
-                }
-                catch ( Exception ignored )
-                {
-                    // exception thrown below
-                }
-            }
-        }
-        throw new UnsupportedOperationException( "Neo4j JMX support not enabled" );
-    }
-
-    @Override
     public KernelData getKernelData()
     {
         return extensions;
@@ -1055,19 +1016,20 @@ public abstract class InternalAbstractGraphDatabase
         return kernelPanicEventGenerator;
     }
 
-    private List<Class<?>> getSettingsClasses()
+    private Iterable<Class<?>> getSettingsClasses( Iterable<KernelExtensionFactory<?>> kernelExtensions )
     {
-        // Get the list of settings classes for extensions
         List<Class<?>> settingsClasses = new ArrayList<Class<?>>();
         settingsClasses.add( GraphDatabaseSettings.class );
-        for ( KernelExtension<?> kernelExtension : kernelExtensions )
+
+        // Get the list of settings classes for extensions
+        for ( KernelExtensionFactory<?> kernelExtension : kernelExtensions )
         {
-            Class<?> settingsClass = kernelExtension.getSettingsClass();
-            if ( settingsClass != null )
+            if ( kernelExtension.getSettingsClass() != null )
             {
-                settingsClasses.add( settingsClass );
+                settingsClasses.add( kernelExtension.getSettingsClass() );
             }
         }
+
         return settingsClasses;
     }
 
@@ -1164,6 +1126,7 @@ public abstract class InternalAbstractGraphDatabase
         }
     }
 
+/*
     public class DefaultKernelExtensionLoader implements Lifecycle
     {
         private final KernelData extensions;
@@ -1194,6 +1157,7 @@ public abstract class InternalAbstractGraphDatabase
         public void stop()
                 throws Throwable
         {
+            extensions.
         }
 
         @Override
@@ -1239,6 +1203,7 @@ public abstract class InternalAbstractGraphDatabase
         }
 
     }
+*/
 
     private class DefaultTxEventSyncHookFactory implements TxEventSyncHookFactory
     {
@@ -1313,17 +1278,30 @@ public abstract class InternalAbstractGraphDatabase
             {
                 return (T) guard;
             }
+            else if ( IndexProviders.class.isAssignableFrom( type ) )
+            {
+                return (T) indexManager;
+            }
+            else if ( KernelData.class.isAssignableFrom( type ) )
+            {
+                return (T) extensions;
+            }
+            else if ( Logging.class.isAssignableFrom( type ) )
+            {
+                return (T) logging;
+            }
             else if ( TransactionInterceptorProviders.class.isAssignableFrom( type ) )
             {
                 return (T) transactionInterceptorProviders;
             }
-            else if ( DefaultKernelExtensionLoader.class.isAssignableFrom( type ) )
+            else if ( KernelExtensions.class.isAssignableFrom( type ) )
             {
-                return (T) kernelExtensionLoader;
+                return (T) kernelExtensions;
             }
             else
             {
-                throw new IllegalArgumentException( "Could not resolve dependency of type:" + type.getName() );
+                // Try with kernel extensions
+                return kernelExtensions.resolveDependency( type );
             }
         }
     }
@@ -1392,26 +1370,6 @@ public abstract class InternalAbstractGraphDatabase
                 throws Throwable
         {
             // TODO: Starting database. Make sure none can access it through lock or CAS
-        }
-    }
-
-    // TODO Probably change name
-    class StuffToDoAfterRecovery implements DataSourceRegistrationListener
-    {
-        @Override
-        public void unregisteredDataSource( XaDataSource ds )
-        {
-        }
-
-        @Override
-        public void registeredDataSource( XaDataSource ds )
-        {
-            if ( ds instanceof NeoStoreXaDataSource )
-            {
-                storeId = ((NeoStoreXaDataSource) ds).getStoreId();
-                KernelDiagnostics.register( diagnosticsManager, InternalAbstractGraphDatabase.this,
-                        ((NeoStoreXaDataSource) ds) );
-            }
         }
     }
 

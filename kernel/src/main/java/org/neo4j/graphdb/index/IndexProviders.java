@@ -17,14 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.ext.udc.impl;
+package org.neo4j.graphdb.index;
 
-import org.neo4j.kernel.KernelExtensionContractTest;
-
-public class TestUdcExtensionImpl extends KernelExtensionContractTest<UdcTimerTask, UdcExtensionImpl>
+/**
+ * Registry of currently active index implementations. Indexing extensions should register the implementation
+ * here on startup, and unregister it on stop.
+ */
+public interface IndexProviders
 {
-    public TestUdcExtensionImpl()
-    {
-        super( UdcExtensionImpl.KEY, UdcExtensionImpl.class );
-    }
+    void registerIndexProvider( String name, IndexImplementation indexImplementation );
+
+    boolean unregisterIndexProvider( String name );
 }

@@ -20,7 +20,6 @@
 package org.neo4j.shell.kernel;
 
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -125,72 +124,73 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         public void stop() throws Throwable
         {
         }
-        
+
         @Override
         public void start() throws Throwable
         {
         }
-        
+
         @Override
         public void shutdown() throws Throwable
         {
         }
-        
+
         @Override
         public void init() throws Throwable
         {
         }
-        
+
         @Override
         public javax.transaction.Transaction suspend() throws SystemException
         {
             return null;
         }
-        
+
         @Override
         public void setTransactionTimeout( int seconds ) throws SystemException
         {
             throw new ReadOnlyDbException();
         }
-        
+
         @Override
         public void setRollbackOnly() throws IllegalStateException, SystemException
         {
             throw new ReadOnlyDbException();
         }
-        
+
         @Override
         public void rollback() throws IllegalStateException, SecurityException, SystemException
         {
             throw new ReadOnlyDbException();
         }
-        
+
         @Override
-        public void resume( javax.transaction.Transaction tobj ) throws IllegalStateException, InvalidTransactionException,
+        public void resume( javax.transaction.Transaction tobj ) throws IllegalStateException,
+                InvalidTransactionException,
                 SystemException
         {
             throw new ReadOnlyDbException();
         }
-        
+
         @Override
         public javax.transaction.Transaction getTransaction() throws SystemException
         {
             throw new ReadOnlyDbException();
         }
-        
+
         @Override
         public int getStatus() throws SystemException
         {
             return Status.STATUS_NO_TRANSACTION;
         }
-        
+
         @Override
         public void commit() throws HeuristicMixedException, HeuristicRollbackException, IllegalStateException,
                 RollbackException, SecurityException, SystemException
         {
             throw new ReadOnlyDbException();
         }
-        
+
         @Override
         public void begin() throws NotSupportedException, SystemException
         {
@@ -201,6 +201,11 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         public int getEventIdentifier()
         {
             return 0;
+        }
+
+        @Override
+        public void doRecovery() throws Throwable
+        {
         }
     };
 
@@ -320,7 +325,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         @Override
         public boolean equals( Object obj )
         {
-            return ( obj instanceof Node ) && ( (Node) obj ).getId() == getId();
+            return (obj instanceof Node) && ((Node) obj).getId() == getId();
         }
 
         @Override
@@ -355,7 +360,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         }
 
         public Iterable<Relationship> getRelationships( Direction direction,
-                RelationshipType... types )
+                                                        RelationshipType... types )
         {
             return relationships( actual.getRelationships( direction, types ) );
         }
@@ -401,17 +406,17 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         }
 
         public Traverser traverse( Order traversalOrder, StopEvaluator stopEvaluator,
-                ReturnableEvaluator returnableEvaluator, RelationshipType relationshipType,
-                Direction direction )
+                                   ReturnableEvaluator returnableEvaluator, RelationshipType relationshipType,
+                                   Direction direction )
         {
             return OldTraverserWrapper.traverse( this, traversalOrder, stopEvaluator,
                     returnableEvaluator, relationshipType, direction );
         }
 
         public Traverser traverse( Order traversalOrder, StopEvaluator stopEvaluator,
-                ReturnableEvaluator returnableEvaluator, RelationshipType firstRelationshipType,
-                Direction firstDirection, RelationshipType secondRelationshipType,
-                Direction secondDirection )
+                                   ReturnableEvaluator returnableEvaluator, RelationshipType firstRelationshipType,
+                                   Direction firstDirection, RelationshipType secondRelationshipType,
+                                   Direction secondDirection )
         {
             return OldTraverserWrapper.traverse( this, traversalOrder, stopEvaluator,
                     returnableEvaluator, firstRelationshipType, firstDirection,
@@ -419,7 +424,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         }
 
         public Traverser traverse( Order traversalOrder, StopEvaluator stopEvaluator,
-                ReturnableEvaluator returnableEvaluator, Object... relationshipTypesAndDirections )
+                                   ReturnableEvaluator returnableEvaluator, Object... relationshipTypesAndDirections )
         {
             return OldTraverserWrapper.traverse( this, traversalOrder, stopEvaluator,
                     returnableEvaluator, relationshipTypesAndDirections );
@@ -484,7 +489,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         @Override
         public boolean equals( Object obj )
         {
-            return ( obj instanceof Relationship ) && ( (Relationship) obj ).getId() == getId();
+            return (obj instanceof Relationship) && ((Relationship) obj).getId() == getId();
         }
 
         @Override
@@ -510,7 +515,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
 
         public Node[] getNodes()
         {
-            return new Node[] { getStartNode(), getEndNode() };
+            return new Node[]{getStartNode(), getEndNode()};
         }
 
         public Node getOtherNode( Node node )
@@ -629,7 +634,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
     }
 
     public RelationshipIndex forRelationships( String indexName,
-            Map<String, String> customConfiguration )
+                                               Map<String, String> customConfiguration )
     {
         return new ReadOnlyRelationshipIndexProxy( actual.index().forRelationships( indexName, customConfiguration ) );
     }
@@ -650,7 +655,7 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
     }
 
     public String setConfiguration( Index<? extends PropertyContainer> index, String key,
-            String value )
+                                    String value )
     {
         throw new ReadOnlyDbException();
     }
@@ -720,12 +725,12 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
             readOnly();
         }
 
-        public void remove(T entity, String key)
+        public void remove( T entity, String key )
         {
             readOnly();
         }
 
-        public void remove(T entity)
+        public void remove( T entity )
         {
             readOnly();
         }
@@ -765,7 +770,9 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         {
             return Node.class;
         }
-    };
+    }
+
+    ;
 
     class ReadOnlyRelationshipIndexProxy extends
             ReadOnlyIndexProxy<Relationship, RelationshipIndex> implements RelationshipIndex
@@ -782,21 +789,21 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
         }
 
         public IndexHits<Relationship> get( String key, Object valueOrNull, Node startNodeOrNull,
-                Node endNodeOrNull )
+                                            Node endNodeOrNull )
         {
             return new ReadOnlyIndexHitsProxy<Relationship>( this, actual.get( key, valueOrNull,
                     startNodeOrNull, endNodeOrNull ) );
         }
 
         public IndexHits<Relationship> query( String key, Object queryOrQueryObjectOrNull,
-                Node startNodeOrNull, Node endNodeOrNull )
+                                              Node startNodeOrNull, Node endNodeOrNull )
         {
             return new ReadOnlyIndexHitsProxy<Relationship>( this, actual.query( key,
                     queryOrQueryObjectOrNull, startNodeOrNull, endNodeOrNull ) );
         }
 
         public IndexHits<Relationship> query( Object queryOrQueryObjectOrNull,
-                Node startNodeOrNull, Node endNodeOrNull )
+                                              Node startNodeOrNull, Node endNodeOrNull )
         {
             return new ReadOnlyIndexHitsProxy<Relationship>( this, actual.query(
                     queryOrQueryObjectOrNull, startNodeOrNull, endNodeOrNull ) );
@@ -939,12 +946,6 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
     }
 
     @Override
-    public <T> T getSingleManagementBean( Class<T> type )
-    {
-        return actual.getSingleManagementBean( type );
-    }
-
-    @Override
     public TransactionBuilder tx()
     {
         return actual.tx();
@@ -954,12 +955,6 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
     public PersistenceSource getPersistenceSource()
     {
         return actual.getPersistenceSource();
-    }
-
-    @Override
-    public <T> Collection<T> getManagementBeans( Class<T> type )
-    {
-        return actual.getManagementBeans( type );
     }
 
     @Override
@@ -973,13 +968,13 @@ public class ReadOnlyGraphDatabaseProxy implements GraphDatabaseService, GraphDa
     {
         return actual.getGuard();
     }
-    
+
     @Override
     public StoreId getStoreId()
     {
         return actual.getStoreId();
     }
-    
+
     @Override
     public TxIdGenerator getTxIdGenerator()
     {
