@@ -185,6 +185,11 @@ public class XaDataSourceManager
     public synchronized void unregisterDataSource( String name )
     {
         final XaDataSource dataSource = dataSources.get( name );
+        if ( dataSource == null )
+        {
+            return;
+        }
+
         byte branchId[] = getBranchId(
                 dataSource.getXaConnection().getXaResource() );
         dataSources.remove( name );

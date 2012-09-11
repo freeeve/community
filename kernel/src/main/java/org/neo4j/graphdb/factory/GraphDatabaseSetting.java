@@ -45,28 +45,28 @@ public abstract class GraphDatabaseSetting<T>
 {
     public static final String TRUE = "true";
     public static final String FALSE = "false";
-    
+
     public static final String ANY = ".+";
 
     public interface DefaultValue
     {
         String getDefaultValue();
     }
-    
+
     //
     // Implementations of GraphDatabaseSetting
     //
-    
+
     public static class StringSetting
-        extends GraphDatabaseSetting<String>
+            extends GraphDatabaseSetting<String>
     {
         private Pattern regex;
 
-        public StringSetting() 
+        public StringSetting()
         {
-            this("", ANY, "Must be a non-empty string.");
+            this( "", ANY, "Must be a non-empty string." );
         }
-        
+
         public StringSetting( String name, String regex, String formatMessage )
         {
             super( name, formatMessage );
@@ -76,24 +76,26 @@ public abstract class GraphDatabaseSetting<T>
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
+            }
 
-            if (!regex.matcher( value ).matches())
+            if ( !regex.matcher( value ).matches() )
             {
                 throw illegalValue( locale, value );
             }
         }
-        
+
         @Override
-        public String valueOf(String rawValue, Config config) 
+        public String valueOf( String rawValue, Config config )
         {
             return rawValue;
         }
     }
-    
+
     public static abstract class NumberSetting<T extends Number>
-        extends GraphDatabaseSetting<T>
+            extends GraphDatabaseSetting<T>
     {
         protected T min;
         protected T max;
@@ -109,16 +111,20 @@ public abstract class GraphDatabaseSetting<T>
             this.min = min;
             this.max = max;
         }
-        
-        @SuppressWarnings({ "unchecked", "rawtypes" })
-		protected void rangeCheck(Locale locale, Comparable value)
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        protected void rangeCheck( Locale locale, Comparable value )
         {
             // Check range
-            if (min != null && value.compareTo( min ) < 0)
-                throw illegalValue(locale, value+"", "Minimum allowed value is: %s", new String[]{min+""} );
+            if ( min != null && value.compareTo( min ) < 0 )
+            {
+                throw illegalValue( locale, value + "", "Minimum allowed value is: %s", new String[]{min + ""} );
+            }
 
-            if (max != null && value.compareTo( max ) > 0)
-            	throw illegalValue(locale, value+"", "Maximum allowed value is: %s", new String[]{max+""} );
+            if ( max != null && value.compareTo( max ) > 0 )
+            {
+                throw illegalValue( locale, value + "", "Maximum allowed value is: %s", new String[]{max + ""} );
+            }
         }
 
         public T getMin()
@@ -131,9 +137,9 @@ public abstract class GraphDatabaseSetting<T>
             return max;
         }
     }
-    
+
     public static class IntegerSetting
-        extends NumberSetting<Integer>
+            extends NumberSetting<Integer>
     {
         public IntegerSetting( String name, String formatMessage )
         {
@@ -148,31 +154,33 @@ public abstract class GraphDatabaseSetting<T>
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
+            }
 
             int val;
             try
             {
                 val = Integer.parseInt( value );
             }
-            catch( Exception e )
+            catch ( Exception e )
             {
                 throw illegalValue( locale, value );
             }
 
-            rangeCheck(locale, val );
+            rangeCheck( locale, val );
         }
 
         @Override
-        public Integer valueOf(String rawValue, Config config) 
+        public Integer valueOf( String rawValue, Config config )
         {
-            return Integer.valueOf(rawValue);
+            return Integer.valueOf( rawValue );
         }
     }
 
     public static class LongSetting
-        extends NumberSetting<Long>
+            extends NumberSetting<Long>
     {
         public LongSetting( String name, String formatMessage )
         {
@@ -187,31 +195,33 @@ public abstract class GraphDatabaseSetting<T>
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
+            }
 
             long val;
             try
             {
                 val = Long.parseLong( value );
             }
-            catch( Exception e )
+            catch ( Exception e )
             {
                 throw illegalValue( locale, value );
             }
 
-            rangeCheck(locale, val );
+            rangeCheck( locale, val );
         }
-        
+
         @Override
-        public Long valueOf(String rawValue, Config config) 
+        public Long valueOf( String rawValue, Config config )
         {
-            return Long.valueOf(rawValue);
+            return Long.valueOf( rawValue );
         }
     }
 
     public static class FloatSetting
-        extends NumberSetting<Float>
+            extends NumberSetting<Float>
     {
         public FloatSetting( String name, String formatMessage )
         {
@@ -220,37 +230,39 @@ public abstract class GraphDatabaseSetting<T>
 
         public FloatSetting( String name, String formatMessage, Float min, Float max )
         {
-            super( name, formatMessage, min, max);
+            super( name, formatMessage, min, max );
         }
 
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
+            }
 
             float val;
             try
             {
                 val = Float.parseFloat( value );
             }
-            catch( Exception e )
+            catch ( Exception e )
             {
                 throw illegalValue( locale, value );
             }
 
-            rangeCheck(locale, val );
+            rangeCheck( locale, val );
         }
-        
+
         @Override
-        public Float valueOf(String rawValue, Config config) 
+        public Float valueOf( String rawValue, Config config )
         {
-            return Float.valueOf(rawValue);
+            return Float.valueOf( rawValue );
         }
     }
 
     public static class DoubleSetting
-        extends NumberSetting<Double>
+            extends NumberSetting<Double>
     {
         public DoubleSetting( String name, String formatMessage )
         {
@@ -265,53 +277,57 @@ public abstract class GraphDatabaseSetting<T>
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
+            }
 
             double val;
             try
             {
                 val = Double.parseDouble( value );
             }
-            catch( Exception e )
+            catch ( Exception e )
             {
                 throw illegalValue( locale, value );
             }
 
-            rangeCheck(locale, val );
+            rangeCheck( locale, val );
         }
-        
+
         @Override
-        public Double valueOf(String rawValue, Config config) 
+        public Double valueOf( String rawValue, Config config )
         {
-            return Double.valueOf(rawValue);
+            return Double.valueOf( rawValue );
         }
     }
 
     public static class PortSetting
-        extends IntegerSetting
+            extends IntegerSetting
     {
         public PortSetting( String name )
         {
-            super(name, "Must be a valid port number", 1, 65535);
+            super( name, "Must be a valid port number", 1, 65535 );
         }
 
         @Override
         public void validate( Locale locale, String values )
         {
             String[] ports = values.split( "-" );
-            for( String value : ports )
+            for ( String value : ports )
             {
 
-                if (value == null)
+                if ( value == null )
+                {
                     throw illegalValue( locale, value );
+                }
 
                 int val;
                 try
                 {
                     val = Integer.parseInt( value );
                 }
-                catch( Exception e )
+                catch ( Exception e )
                 {
                     throw illegalValue( locale, value );
                 }
@@ -325,9 +341,9 @@ public abstract class GraphDatabaseSetting<T>
             String[] ports = config.get( name() ).split( "-" );
             int[] portInts = new int[ports.length];
 
-            for( int i = 0; i < ports.length; i++ )
+            for ( int i = 0; i < ports.length; i++ )
             {
-                String port = ports[ i ];
+                String port = ports[i];
                 portInts[i] = Integer.parseInt( port );
             }
             return portInts;
@@ -335,17 +351,21 @@ public abstract class GraphDatabaseSetting<T>
 
         public int getPort( Map<String, String> config )
         {
-            return Integer.parseInt( config.get( name() ));
+            return Integer.parseInt( config.get( name() ) );
         }
 
-        protected void rangeCheck(Comparable value)
+        protected void rangeCheck( Comparable value )
         {
             // Check range
-            if (value.compareTo( new Integer( 1 ) ) < 0)
+            if ( value.compareTo( new Integer( 1 ) ) < 0 )
+            {
                 throw new IllegalArgumentException( "Minimum allowed value is: 0" );
+            }
 
-            if (value.compareTo( new Integer( 65535 ) ) > 0)
+            if ( value.compareTo( new Integer( 65535 ) ) > 0 )
+            {
                 throw new IllegalArgumentException( "Maximum allowed value is: 65535" );
+            }
         }
 
         @Override
@@ -355,14 +375,123 @@ public abstract class GraphDatabaseSetting<T>
         }
     }
 
+    public static class HostnamePortSetting
+            extends StringSetting
+    {
+        public HostnamePortSetting( String name )
+        {
+            super( name, ANY, "Must be a valid host name and optional port number" );
+        }
+
+        @Override
+        public void validate( Locale locale, String values )
+        {
+            String[] parts = values.split( ":" );
+
+            if ( parts.length == 2 )
+            {
+                String[] ports = parts[1].split( "-" );
+                for ( String value : ports )
+                {
+
+                    if ( value == null )
+                    {
+                        throw illegalValue( locale, value );
+                    }
+
+                    int val;
+                    try
+                    {
+                        val = Integer.parseInt( value );
+                    }
+                    catch ( Exception e )
+                    {
+                        throw illegalValue( locale, value );
+                    }
+
+                    rangeCheck( val );
+                }
+            }
+        }
+
+        public int[] getPorts( Map<String, String> config )
+        {
+            String value = config.get( name() );
+            String[] parts = value.split( ":" );
+            if ( parts.length == 2 )
+            {
+                String[] ports = parts[1].split( "-" );
+                int[] portInts = new int[ports.length];
+
+                for ( int i = 0; i < ports.length; i++ )
+                {
+                    String port = ports[i];
+                    portInts[i] = Integer.parseInt( port );
+                }
+                return portInts;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public int getPort( Map<String, String> config )
+        {
+            int[] ports = getPorts( config );
+            if ( ports != null )
+            {
+                return ports[0];
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        public String getAddress( Map<String, String> config )
+        {
+            String value = config.get( name() );
+            String[] parts = value.split( ":" );
+            if ( parts[0].length() > 0 )
+            {
+                return parts[0];
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        protected void rangeCheck( Comparable value )
+        {
+            // Check range
+            if ( value.compareTo( new Integer( 1 ) ) < 0 )
+            {
+                throw new IllegalArgumentException( "Minimum allowed value is: 0" );
+            }
+
+            if ( value.compareTo( new Integer( 65535 ) ) > 0 )
+            {
+                throw new IllegalArgumentException( "Maximum allowed value is: 65535" );
+            }
+        }
+
+        @Override
+        public String valueOf( String rawValue, Config config )
+        {
+            return rawValue;
+        }
+    }
+
     public static class TimeSpanSetting extends NumberSetting<Long>
     {
         // Regular expression that matches a duration e.g. 10ms or 5s
-        private final Pattern timeSpanRegex = Pattern.compile("\\d+(ms|s|m)"); 
+        private final Pattern timeSpanRegex = Pattern.compile( "\\d+(ms|s|m)?" );
 
         public TimeSpanSetting( String name )
         {
-            super(name, "Must be a valid time span");
+            super( name, "Must be a valid time span" );
         }
 
         public TimeSpanSetting( String name, Long min, Long max )
@@ -372,12 +501,14 @@ public abstract class GraphDatabaseSetting<T>
 
         @Override
         public void validate( Locale locale, String value )
-            throws IllegalArgumentException
+                throws IllegalArgumentException
         {
-            if(value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
-            
-            if (!timeSpanRegex.matcher( value ).matches())
+            }
+
+            if ( !timeSpanRegex.matcher( value ).matches() )
             {
                 throw illegalValue( locale, value );
             }
@@ -385,34 +516,36 @@ public abstract class GraphDatabaseSetting<T>
         }
 
         @Override
-        public Long valueOf(String rawValue, Config config) 
+        public Long valueOf( String rawValue, Config config )
         {
-            return TimeUtil.parseTimeMillis(rawValue);
+            return TimeUtil.parseTimeMillis( rawValue );
         }
     }
 
     public static abstract class BaseOptionsSetting<ST>
-        extends GraphDatabaseSetting<ST>
+            extends GraphDatabaseSetting<ST>
     {
         String[] options;
-        
-        protected BaseOptionsSetting( String name, String... options)
+
+        protected BaseOptionsSetting( String name, String... options )
         {
-            super( name, "Invalid option. Valid options are:%s");
-            
-            this.options  = options;
+            super( name, "Invalid option. Valid options are:%s" );
+
+            this.options = options;
         }
 
         @Override
         public void validate( Locale locale, String value )
-            throws IllegalArgumentException
+                throws IllegalArgumentException
         {
-            for( String option : options() )
+            for ( String option : options() )
             {
-                if (option.equalsIgnoreCase( value ))
+                if ( option.equalsIgnoreCase( value ) )
+                {
                     return;
+                }
             }
-            
+
             throw illegalValue( locale, value, Arrays.asList( options() ).toString() );
         }
 
@@ -421,250 +554,282 @@ public abstract class GraphDatabaseSetting<T>
             return options;
         }
     }
-    
-    public static class OptionsSetting extends BaseOptionsSetting<String> {
 
-        protected OptionsSetting(String name, String ... options)
+    public static class OptionsSetting extends BaseOptionsSetting<String>
+    {
+
+        protected OptionsSetting( String name, String... options )
         {
-            super(name, options);
+            super( name, options );
         }
 
         @Override
-        public String valueOf(String rawValue, Config config)
+        public String valueOf( String rawValue, Config config )
         {
             return rawValue;
         }
-        
-    }
-    
-    public static class EnumerableSetting<ET extends Enum<ET>> extends BaseOptionsSetting<ET> {
 
-        private static String[] enumSetToStringArray(EnumSet<?> enums) {
-            String [] stringValues = new String[enums.size()];
-            int i=0;
-            for(Enum<?> v : enums) 
+    }
+
+    public static class EnumerableSetting<ET extends Enum<ET>> extends BaseOptionsSetting<ET>
+    {
+
+        private static String[] enumSetToStringArray( EnumSet<?> enums )
+        {
+            String[] stringValues = new String[enums.size()];
+            int i = 0;
+            for ( Enum<?> v : enums )
+            {
                 stringValues[i++] = v.name().toLowerCase();
+            }
             return stringValues;
         }
 
         private final Class<ET> backingEnum;
-        
-        public EnumerableSetting(String name, Class<ET> theEnum)
+
+        public EnumerableSetting( String name, Class<ET> theEnum )
         {
-            super(name, enumSetToStringArray(EnumSet.allOf(theEnum)));
+            super( name, enumSetToStringArray( EnumSet.allOf( theEnum ) ) );
             this.backingEnum = theEnum;
         }
 
         @Override
-        public ET valueOf(String rawValue, Config config)
+        public ET valueOf( String rawValue, Config config )
         {
-            return Enum.valueOf(backingEnum, rawValue);
+            return Enum.valueOf( backingEnum, rawValue );
         }
-        
+
     }
 
     public static class BooleanSetting
-        extends BaseOptionsSetting<Boolean>
+            extends BaseOptionsSetting<Boolean>
     {
-        public BooleanSetting( String name)
+        public BooleanSetting( String name )
         {
             super( name, TRUE, FALSE );
         }
-        
+
         @Override
-        public Boolean valueOf(String rawValue, Config config) 
+        public Boolean valueOf( String rawValue, Config config )
         {
-            return Boolean.parseBoolean(rawValue);
+            return Boolean.parseBoolean( rawValue );
         }
     }
 
     public static class AbstractPathSetting
-    extends StringSetting
+            extends StringSetting
     {
         private DirectorySetting relativeTo;
         private boolean makeCanonical;
         private boolean fixIncorrectPathSeparators;
-    
+
         public AbstractPathSetting( String name )
         {
-            this( name, null, false, false);
+            this( name, null, false, false );
         }
-        
+
         /**
          * @param name
-         * @param makeCanonical Resolve symbolic links and clean up the path string before returning it.
+         * @param makeCanonical              Resolve symbolic links and clean up the path string before returning it.
          * @param fixIncorrectPathSeparators Ensure that path separators are correct for the current platform.
          */
-        public AbstractPathSetting( String name, boolean makeCanonical, boolean fixIncorrectPathSeparators)
+        public AbstractPathSetting( String name, boolean makeCanonical, boolean fixIncorrectPathSeparators )
         {
-            this( name, null, makeCanonical, fixIncorrectPathSeparators);
+            this( name, null, makeCanonical, fixIncorrectPathSeparators );
         }
-        
+
         /**
          * @param name
-         * @param relativeTo If the configured value is a relative path, make it relative to this config setting.
-         * @param makeCanonical Resolve symbolic links and clean up the path string before returning it.
+         * @param relativeTo                 If the configured value is a relative path,
+         *                                   make it relative to this config setting.
+         * @param makeCanonical              Resolve symbolic links and clean up the path string before returning it.
          * @param fixIncorrectPathSeparators Ensure that path separators are correct for the current platform.
          */
-        public AbstractPathSetting( String name, DirectorySetting relativeTo, boolean makeCanonical, boolean fixIncorrectPathSeparators) {
-            super( name, ".*", "Must be a valid file path.");
+        public AbstractPathSetting( String name, DirectorySetting relativeTo, boolean makeCanonical,
+                                    boolean fixIncorrectPathSeparators )
+        {
+            super( name, ".*", "Must be a valid file path." );
             this.relativeTo = relativeTo;
             this.makeCanonical = makeCanonical;
             this.fixIncorrectPathSeparators = fixIncorrectPathSeparators;
         }
-    
+
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
+            }
         }
-        
+
         @Override
-        public String valueOf(String rawValue, Config config) 
+        public String valueOf( String rawValue, Config config )
         {
-            if(fixIncorrectPathSeparators) 
+            if ( fixIncorrectPathSeparators )
             {
-                rawValue = FileUtils.fixSeparatorsInPath(rawValue);
-            }
-            
-            File path = new File(rawValue);
-
-            if(!path.isAbsolute() && relativeTo != null)
-            {
-                File baseDir = new File(config.get(relativeTo));
-                path = new File(baseDir, rawValue);
+                rawValue = FileUtils.fixSeparatorsInPath( rawValue );
             }
 
-            if(makeCanonical)
+            File path = new File( rawValue );
+
+            if ( !path.isAbsolute() && relativeTo != null )
+            {
+                File baseDir = new File( config.get( relativeTo ) );
+                path = new File( baseDir, rawValue );
+            }
+
+            if ( makeCanonical )
             {
                 try
                 {
                     return path.getCanonicalPath();
-                } catch (IOException e)
+                }
+                catch ( IOException e )
                 {
-                    if (path.isAbsolute())
+                    if ( path.isAbsolute() )
                     {
                         return path.getAbsolutePath();
                     }
 
-                    throw new IllegalArgumentException(name() + ": unable to resolve canonical path for " + rawValue + ".", e);
+                    throw new IllegalArgumentException( name() + ": unable to resolve canonical path for " + rawValue
+                            + ".", e );
                 }
-            } else if( path.isAbsolute()) 
+            }
+            else if ( path.isAbsolute() )
             {
                 return path.getAbsolutePath();
-            } else 
+            }
+            else
             {
                 return rawValue;
             }
         }
     }
-    
+
     public static class FileSetting
-        extends AbstractPathSetting
+            extends AbstractPathSetting
     {
-    
+
         public FileSetting( String name )
         {
-            super( name, null, false, false);
+            super( name, null, false, false );
         }
-        
+
         /**
          * @param name
-         * @param makeCanonical Resolve symbolic links and clean up the path string before returning it.
+         * @param makeCanonical              Resolve symbolic links and clean up the path string before returning it.
          * @param fixIncorrectPathSeparators Ensure that path separators are correct for the current platform.
          */
-        public FileSetting( String name, boolean makeCanonical, boolean fixIncorrectPathSeparators)
+        public FileSetting( String name, boolean makeCanonical, boolean fixIncorrectPathSeparators )
         {
-            super( name, null, makeCanonical, fixIncorrectPathSeparators);
+            super( name, null, makeCanonical, fixIncorrectPathSeparators );
         }
-        
+
         /**
          * @param name
-         * @param relativeTo If the configured value is a relative path, make it relative to this config setting.
-         * @param makeCanonical Resolve symbolic links and clean up the path string before returning it.
+         * @param relativeTo                 If the configured value is a relative path,
+         *                                   make it relative to this config setting.
+         * @param makeCanonical              Resolve symbolic links and clean up the path string before returning it.
          * @param fixIncorrectPathSeparators Ensure that path separators are correct for the current platform.
          */
-        public FileSetting( String name, DirectorySetting relativeTo, boolean makeCanonical, boolean fixIncorrectPathSeparators) {
-            super( name, relativeTo, makeCanonical, fixIncorrectPathSeparators);
+        public FileSetting( String name, DirectorySetting relativeTo, boolean makeCanonical,
+                            boolean fixIncorrectPathSeparators )
+        {
+            super( name, relativeTo, makeCanonical, fixIncorrectPathSeparators );
         }
-    
+
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
-            
-            File file = new File(value);
-            if(file.exists() && !file.isFile())
+            }
+
+            File file = new File( value );
+            if ( file.exists() && !file.isFile() )
+            {
                 throw illegalValue( locale, value );
+            }
         }
     }
-    
+
     public static class DirectorySetting
-        extends AbstractPathSetting
+            extends AbstractPathSetting
     {
-    
+
         public DirectorySetting( String name )
         {
-            super( name, null, false, false);
+            super( name, null, false, false );
         }
-        
+
         /**
          * @param name
-         * @param makeCanonical Resolve symbolic links and clean up the path string before returning it.
+         * @param makeCanonical              Resolve symbolic links and clean up the path string before returning it.
          * @param fixIncorrectPathSeparators Ensure that path separators are correct for the current platform.
          */
-        public DirectorySetting( String name, boolean makeCanonical, boolean fixIncorrectPathSeparators)
+        public DirectorySetting( String name, boolean makeCanonical, boolean fixIncorrectPathSeparators )
         {
-            super( name, null, makeCanonical, fixIncorrectPathSeparators);
+            super( name, null, makeCanonical, fixIncorrectPathSeparators );
         }
-        
+
         /**
          * @param name
-         * @param relativeTo If the configured value is a relative path, make it relative to this config setting.
-         * @param makeCanonical Resolve symbolic links and clean up the path string before returning it.
+         * @param relativeTo                 If the configured value is a relative path,
+         *                                   make it relative to this config setting.
+         * @param makeCanonical              Resolve symbolic links and clean up the path string before returning it.
          * @param fixIncorrectPathSeparators Ensure that path separators are correct for the current platform.
          */
-        public DirectorySetting( String name, DirectorySetting relativeTo, boolean makeCanonical, boolean fixIncorrectPathSeparators) {
-            super( name, relativeTo, makeCanonical, fixIncorrectPathSeparators);
+        public DirectorySetting( String name, DirectorySetting relativeTo, boolean makeCanonical,
+                                 boolean fixIncorrectPathSeparators )
+        {
+            super( name, relativeTo, makeCanonical, fixIncorrectPathSeparators );
         }
-    
+
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
-            
-            File dir = new File(value);
-            if(dir.exists() && !dir.isDirectory())
+            }
+
+            File dir = new File( value );
+            if ( dir.exists() && !dir.isDirectory() )
+            {
                 throw illegalValue( locale, value );
+            }
         }
     }
-    
+
     public static class NumberOfBytesSetting
-        extends GraphDatabaseSetting<Long>
+            extends GraphDatabaseSetting<Long>
     {
         // Regular expression that matches a size e.g. 512M or 2G
-        private final Pattern sizeRegex = Pattern.compile("\\d+ *[kmgKMG]?");
-    
+        private final Pattern sizeRegex = Pattern.compile( "\\d+ *[kmgKMG]?" );
+
         public NumberOfBytesSetting( String name )
         {
-            super( name, "%s is not a valid size, must be e.g. 10, 5K, 1M, 11G");
+            super( name, "%s is not a valid size, must be e.g. 10, 5K, 1M, 11G" );
         }
-    
+
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
+            if ( value == null )
+            {
                 throw illegalValue( locale, value );
-            
-            if(!sizeRegex.matcher(value).matches())
+            }
+
+            if ( !sizeRegex.matcher( value ).matches() )
+            {
                 throw illegalValue( locale, value );
+            }
         }
-        
+
         @Override
-        public Long valueOf(String rawValue, Config config) 
+        public Long valueOf( String rawValue, Config config )
         {
             String mem = rawValue.toLowerCase();
             long multiplier = 1;
@@ -683,21 +848,21 @@ public abstract class GraphDatabaseSetting<T>
                 multiplier = 1024 * 1024 * 1024;
                 mem = mem.substring( 0, mem.length() - 1 );
             }
-    
+
             return Long.parseLong( mem.trim() ) * multiplier;
         }
     }
-    
+
     public static class IntegerRangeNumberOfBytesSetting extends GraphDatabaseSetting<Integer>
     {
         private final GraphDatabaseSetting<Long> fullRange;
         private final int atLeast;
-        
+
         public IntegerRangeNumberOfBytesSetting( String name )
         {
             this( name, 0 );
         }
-        
+
         public IntegerRangeNumberOfBytesSetting( String name, int atLeast )
         {
             super( name, "" );
@@ -711,10 +876,14 @@ public abstract class GraphDatabaseSetting<T>
             fullRange.validate( locale, value );
             Long bytes = fullRange.valueOf( value, null );
             if ( bytes.longValue() > Integer.MAX_VALUE )
+            {
                 throw illegalValue( locale, value, "Size too big, keep withing interger range (2^32-1)", "" + bytes );
+            }
             int result = bytes.intValue();
             if ( result < atLeast )
+            {
                 throw illegalValue( locale, value, "Size too low, must be at least " + atLeast );
+            }
         }
 
         @Override
@@ -723,117 +892,123 @@ public abstract class GraphDatabaseSetting<T>
             return fullRange.valueOf( rawValue, config ).intValue();
         }
     }
-    
+
     public static class ListSetting<T>
-        extends GraphDatabaseSetting<List<T>>
+            extends GraphDatabaseSetting<List<T>>
     {
         private GraphDatabaseSetting<T> itemSetting;
         private String separator;
 
         public ListSetting( String name, GraphDatabaseSetting<T> itemSetting )
         {
-            this(name, itemSetting, ",");
+            this( name, itemSetting, "," );
         }
-        
+
         public ListSetting( String name, GraphDatabaseSetting<T> itemSetting, String separator )
         {
-            super( name, "%s is not a valid list, must be '"+separator+"' separated list of values.");
+            super( name, "%s is not a valid list, must be '" + separator + "' separated list of values." );
             this.itemSetting = itemSetting;
             this.separator = separator;
         }
-    
+
         @Override
         public void validate( Locale locale, String value )
         {
-            if (value == null)
-                throw illegalValue( locale, value );
-            
-            if( value.length() == 0)
-                return;
-            
-            for(String item : value.split(separator) ) 
+            if ( value == null )
             {
-                itemSetting.validate(item);
+                throw illegalValue( locale, value );
+            }
+
+            if ( value.length() == 0 )
+            {
+                return;
+            }
+
+            for ( String item : value.split( separator ) )
+            {
+                itemSetting.validate( item );
             }
         }
-        
+
         @Override
-        public List<T> valueOf(String rawValue, Config config) 
+        public List<T> valueOf( String rawValue, Config config )
         {
             List<T> list = new ArrayList<T>();
-            if(rawValue.length() > 0)
+            if ( rawValue.length() > 0 )
             {
-                for(String item : rawValue.split(separator) ) 
+                for ( String item : rawValue.split( separator ) )
                 {
-                    list.add(itemSetting.valueOf(item, config));
+                    list.add( itemSetting.valueOf( item, config ) );
                 }
             }
             return list;
         }
     }
-    
 
 
     public static class URISetting extends GraphDatabaseSetting<URI>
     {
         private boolean normalize;
-    
+
         public URISetting( String name )
         {
-            this( name, false);
+            this( name, false );
         }
-        
-        public URISetting( String name, boolean normalize) {
-            super( name, "'%s' does not validate as a proper URI.");
+
+        public URISetting( String name, boolean normalize )
+        {
+            super( name, "'%s' does not validate as a proper URI." );
             this.normalize = normalize;
         }
-    
+
         @Override
         public void validate( Locale locale, String value )
         {
-            if(value == null)
-                throw illegalValue(locale,"");
-            
+            if ( value == null )
+            {
+                throw illegalValue( locale, "" );
+            }
+
             try
             {
                 new URI( value ).normalize();
             }
             catch ( URISyntaxException e )
             {
-                throw illegalValue(locale, value);
+                throw illegalValue( locale, value );
             }
         }
-        
+
         @Override
-        public URI valueOf(String rawValue, Config config) 
+        public URI valueOf( String rawValue, Config config )
         {
             URI uri = null;
             try
             {
                 uri = new URI( rawValue );
 
-                if(normalize)   
+                if ( normalize )
                 {
                     String resultStr = uri.normalize().toString();
                     if ( resultStr.endsWith( "/" ) )
                     {
-                        uri = new URI( resultStr.substring(0, resultStr.length() - 1));
+                        uri = new URI( resultStr.substring( 0, resultStr.length() - 1 ) );
                     }
                 }
             }
             catch ( URISyntaxException e )
             {
-                throw new RuntimeException("Unable to get URI value from config, see nested exception", e);
+                throw new RuntimeException( "Unable to get URI value from config, see nested exception", e );
             }
 
             return uri;
         }
     }
-    
+
     //
     // Actual class implementation
     //
-    
+
 
     private final String name;
     private final String validationMessage;
@@ -848,14 +1023,14 @@ public abstract class GraphDatabaseSetting<T>
     {
         return name;
     }
-    
+
     public String validationMessage()
     {
         return validationMessage;
     }
-    
-    public void validate(String value)
-        throws IllegalArgumentException
+
+    public void validate( String value )
+            throws IllegalArgumentException
     {
         validate( Locale.getDefault(), value );
     }
@@ -863,60 +1038,63 @@ public abstract class GraphDatabaseSetting<T>
     /**
      * Validate a raw string value, called when configuration is set.
      * Throws IllegalArgumentException if the provided value is not valid.
-     * 
+     *
      * @param locale
      * @param value
      */
     public abstract void validate( Locale locale, String value );
-    
+
     /**
      * Create a typed value from a raw string value. This is to be called
      * when a value is fetched from configuration.
-     * 
+     *
      * @param rawValue The raw string value stored in configuration
-     * @param config The config instance, allows having config values that depend on each other.
+     * @param config   The config instance, allows having config values that depend on each other.
      * @return
      */
-    public abstract T valueOf(String rawValue, Config config);
-    
-    protected String getMessage(Locale locale, String defaultMessage)
+    public abstract T valueOf( String rawValue, Config config );
+
+    protected String getMessage( Locale locale, String defaultMessage )
     {
-        if (locale.getLanguage().equals( Locale.ENGLISH.getLanguage() ))
+        if ( locale.getLanguage().equals( Locale.ENGLISH.getLanguage() ) )
+        {
             return defaultMessage;
+        }
 
         try
         {
             ResourceBundle bundle = ResourceBundle.getBundle( getClass().getName() );
             return bundle.getString( name() );
         }
-        catch( Exception e )
+        catch ( Exception e )
         {
             return defaultMessage;
         }
     }
 
-    protected IllegalArgumentException illegalValue(Locale locale, String value, Object... args)
-        throws IllegalArgumentException
-    {
-        return illegalValue(locale, value, validationMessage, args);
-    }
-    
-    protected IllegalArgumentException illegalValue(Locale locale, String value, String rawMessage, Object [] args)
+    protected IllegalArgumentException illegalValue( Locale locale, String value, Object... args )
             throws IllegalArgumentException
-        {
-            String message = getMessage( locale, rawMessage );
-            String errorMessage = new Formatter(locale).format( message, args ).toString();
-            
-            String settingNameMessage = getMessage( locale, "Invalid value %s for config property '%s': " );
-            String settingMessage = new Formatter(locale).format( settingNameMessage, value == null?"[null]":"'"+value+"'", name() ).toString();
-            
-            return new IllegalArgumentException( settingMessage + errorMessage );
-        }
+    {
+        return illegalValue( locale, value, validationMessage, args );
+    }
+
+    protected IllegalArgumentException illegalValue( Locale locale, String value, String rawMessage, Object[] args )
+            throws IllegalArgumentException
+    {
+        String message = getMessage( locale, rawMessage );
+        String errorMessage = new Formatter( locale ).format( message, args ).toString();
+
+        String settingNameMessage = getMessage( locale, "Invalid value %s for config property '%s': " );
+        String settingMessage = new Formatter( locale ).format( settingNameMessage,
+                value == null ? "[null]" : "'" + value + "'", name() ).toString();
+
+        return new IllegalArgumentException( settingMessage + errorMessage );
+    }
 
     public static boolean osIsWindows()
     {
         String nameOs = System.getProperty( "os.name" );
-        return nameOs.startsWith("Windows");
+        return nameOs.startsWith( "Windows" );
     }
 
     public static boolean osIsMacOS()

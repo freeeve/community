@@ -1119,10 +1119,8 @@ public abstract class InternalAbstractGraphDatabase
 
         @Override
         public void shutdown()
-                throws Throwable
         {
-            // TODO This should be refactored so that shutdown does not need logger as input
-            shutdown( msgLog );
+            super.shutdown();
         }
     }
 
@@ -1297,6 +1295,10 @@ public abstract class InternalAbstractGraphDatabase
             else if ( KernelExtensions.class.isAssignableFrom( type ) )
             {
                 return (T) kernelExtensions;
+            }
+            else if ( NodeManager.class.isAssignableFrom( type ) )
+            {
+                return (T) nodeManager;
             }
             else
             {

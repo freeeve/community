@@ -29,10 +29,10 @@ import org.neo4j.kernel.extension.KernelExtensions;
 import org.neo4j.kernel.lifecycle.LifecycleStatus;
 
 /**
- * Test the implementation of the {@link KernelExtension} framework. Treats the
+ * Test the implementation of the {@link org.neo4j.kernel.extension.KernelExtensionFactory} framework. Treats the
  * framework as a black box and takes the perspective of the extension, making
  * sure that the framework fulfills its part of the contract. The parent class (
- * {@link KernelExtensionContractTest}) takes the opposite approach, it treats
+ * {@link KernelExtensionFactoryContractTest}) takes the opposite approach, it treats
  * the extension implementation as a black box to assert that it fulfills the
  * requirements stipulated by the framework.
  *
@@ -115,6 +115,7 @@ public final class TestKernelExtension extends KernelExtensionFactoryContractTes
         GraphDatabaseAPI graphdb = graphdb( "graphdb", /*loadExtensions=*/true, 0 );
         graphdb.shutdown();
 
-        assertEquals( LifecycleStatus.SHUTDOWN, graphdb.getDependencyResolver().resolveDependency( KernelExtensions.class ).resolveDependency( DummyExtension.class ).getStatus() );
+        assertEquals( LifecycleStatus.SHUTDOWN, graphdb.getDependencyResolver().resolveDependency( KernelExtensions
+                .class ).resolveDependency( DummyExtension.class ).getStatus() );
     }
 }

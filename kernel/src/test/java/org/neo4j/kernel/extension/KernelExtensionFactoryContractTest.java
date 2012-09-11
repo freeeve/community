@@ -62,7 +62,7 @@ public abstract class KernelExtensionFactoryContractTest
     }
 
     /**
-     * Override to create default configuration for the {@link org.neo4j.kernel.KernelExtension}
+     * Override to create default configuration for the {@link org.neo4j.kernel.extension.KernelExtensionFactory}
      * under test.
      *
      * @param shouldLoad <code>true</code> if configuration that makes the

@@ -37,7 +37,6 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.util.StringLogger;
 
 public class KernelDataTest
 {
@@ -62,7 +61,7 @@ public class KernelDataTest
         // given
         Kernel kernel = new Kernel( null );
         String instanceId = kernel.instanceId();
-        kernel.shutdown( StringLogger.SYSTEM );
+        kernel.shutdown();
 
         // when
         kernel = new Kernel( null );
@@ -126,7 +125,7 @@ public class KernelDataTest
     public void shouldAllowReuseOfConfiguredInstanceIdAfterShutdown() throws Exception
     {
         // given
-        new Kernel( "myInstance" ).shutdown( StringLogger.SYSTEM );
+        new Kernel( "myInstance" ).shutdown();
 
         // when
         Kernel kernel = new Kernel( "myInstance" );
@@ -156,9 +155,9 @@ public class KernelDataTest
         }
 
         @Override
-        synchronized void shutdown( StringLogger msgLog )
+        public void shutdown()
         {
-            super.shutdown( msgLog );
+            super.shutdown();
             kernels.remove( this );
         }
     }
@@ -194,7 +193,7 @@ public class KernelDataTest
                     {
                         for ( Kernel kernel : kernels.toArray( new Kernel[kernels.size()] ) )
                         {
-                            kernel.shutdown( StringLogger.DEV_NULL );
+                            kernel.shutdown();
                         }
                         kernels.clear();
                     }
