@@ -19,18 +19,34 @@
  */
 package org.neo4j.kernel.impl.transaction.xaframework;
 
-public class NoSuchLogVersionException extends MissingLogDataException
-{
-    private long version;
+import java.io.IOException;
 
-    public NoSuchLogVersionException( long version )
+/**
+ * Merely a super class for any kind of exception about logical log
+ * or transaction missing or not found.
+ * 
+ * @author Mattias Persson
+ *
+ */
+public class MissingLogDataException extends IOException
+{
+    public MissingLogDataException()
     {
-        super( "No such log version:" + version );
-        this.version = version;
+        super();
     }
 
-    public long getVersion()
+    public MissingLogDataException( String message, Throwable cause )
     {
-        return version;
+        super( message, cause );
+    }
+
+    public MissingLogDataException( String message )
+    {
+        super( message );
+    }
+
+    public MissingLogDataException( Throwable cause )
+    {
+        super( cause );
     }
 }
