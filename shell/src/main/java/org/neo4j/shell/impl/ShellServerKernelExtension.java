@@ -51,7 +51,10 @@ public final class ShellServerKernelExtension implements Lifecycle
     @Override
     public void stop() throws Throwable
     {
-        server.shutdown();
+        if ( server != null )
+        {
+            server.shutdown();
+        }
     }
 
     @Override
