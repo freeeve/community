@@ -43,61 +43,6 @@ public class LifeSupport
     LifecycleStatus status = LifecycleStatus.NONE;
     List<LifecycleListener> listeners = new ArrayList<LifecycleListener>();
 
-    public synchronized <T> T add( T instance )
-    {
-        if ( instance instanceof Lifecycle )
-        {
-            LifecycleInstance newInstance = new LifecycleInstance( (Lifecycle) instance );
-            instances.add( newInstance );
-            bringToState( newInstance );
-        }
-        return instance;
-    }
-
-    private void bringToState( LifecycleInstance instance )
-    {
-        switch ( status )
-        {
-            case STARTED:
-                instance.start();
-                break;
-            case STOPPED:
-                instance.init();
-                break;
-            case SHUTDOWN:
-                break;
-        }
-    }
-
-    public synchronized boolean remove( Object instance )
-    {
-        for ( int i = 0; i < instances.size(); i++ )
-        {
-            if ( instances.get( i ).isInstance( instance ) )
-            {
-                LifecycleInstance lifecycleInstance = instances.remove( i );
-                lifecycleInstance.shutdown();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public synchronized LifecycleStatus getStatus()
-    {
-        return status;
-    }
-
-    public synchronized void addLifecycleListener( LifecycleListener listener )
-    {
-        listeners.add( listener );
-    }
-
-    public synchronized void removeLifecycleListener( LifecycleListener listener )
-    {
-        listeners.remove( listener );
-    }
-
     /**
      * Initialize all registered instances, transitioning from status NONE to STOPPED.
      * <p/>
@@ -354,6 +299,84 @@ public class LifeSupport
         }
     }
 
+    /**
+     * Add a new Lifecycle instance. It will immediately be transitioned
+     * to the state of this LifeSupport.
+     *
+     * @param instance the Lifecycle instance to add
+     * @param <T>      type of the instance
+     * @return the instance itself
+     * @throws LifecycleException if the instance could not be transitioned properly
+     */
+    public synchronized <T> T add( T instance )
+            throws LifecycleException
+    {
+        if ( instance instanceof Lifecycle )
+        {
+            LifecycleInstance newInstance = new LifecycleInstance( (Lifecycle) instance );
+            instances.add( newInstance );
+            bringToState( newInstance );
+        }
+        return instance;
+    }
+
+    public synchronized boolean remove( Object instance )
+    {
+        for ( int i = 0; i < instances.size(); i++ )
+        {
+            if ( instances.get( i ).isInstance( instance ) )
+            {
+                LifecycleInstance lifecycleInstance = instances.remove( i );
+                lifecycleInstance.shutdown();
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    public synchronized Iterable<Lifecycle> getLifecycleInstances()
+    {
+        return Iterables.map( new Function<LifecycleInstance, Lifecycle>()
+        {
+            @Override
+            public Lifecycle map( LifecycleInstance lifecycleInstance )
+            {
+                return lifecycleInstance.instance;
+            }
+        }, instances );
+    }
+
+    /**
+     * Shutdown and throw away all the current instances. After
+     * this you can add new instances. This method does not change
+     * the status of the LifeSupport (i.e. if it was started it will remain started)
+     */
+    public synchronized void clear()
+    {
+        for ( LifecycleInstance instance : instances )
+        {
+            instance.shutdown();
+        }
+        instances.clear();
+    }
+
+    public synchronized LifecycleStatus getStatus()
+    {
+        return status;
+    }
+
+    public synchronized void addLifecycleListener( LifecycleListener listener )
+    {
+        listeners.add( listener );
+    }
+
+    public synchronized void removeLifecycleListener( LifecycleListener listener )
+    {
+        listeners.remove( listener );
+    }
+
+
     public synchronized void dump( StringLogger logger )
     {
         logger.logLongMessage( "Lifecycle status:" + status.name(), new Visitor<StringLogger.LineLogger>()
@@ -370,6 +393,22 @@ public class LifeSupport
             }
         }, true
         );
+    }
+
+    private void bringToState( LifecycleInstance instance )
+            throws LifecycleException
+    {
+        switch ( status )
+        {
+            case STARTED:
+                instance.start();
+                break;
+            case STOPPED:
+                instance.init();
+                break;
+            case SHUTDOWN:
+                break;
+        }
     }
 
     private LifecycleException causedBy( LifecycleException exception, LifecycleException chainedLifecycleException )
@@ -400,18 +439,6 @@ public class LifeSupport
         }
 
         return newStatus;
-    }
-
-    public Iterable<Lifecycle> getLifecycleInstances()
-    {
-        return Iterables.map( new Function<LifecycleInstance, Lifecycle>()
-        {
-            @Override
-            public Lifecycle map( LifecycleInstance lifecycleInstance )
-            {
-                return lifecycleInstance.instance;
-            }
-        }, instances );
     }
 
     private class LifecycleInstance
