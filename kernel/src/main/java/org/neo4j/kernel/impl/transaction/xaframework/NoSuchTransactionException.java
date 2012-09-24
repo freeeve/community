@@ -19,18 +19,23 @@
  */
 package org.neo4j.kernel.impl.transaction.xaframework;
 
-public class NoSuchLogVersionException extends MissingLogDataException
+public class NoSuchTransactionException extends MissingLogDataException
 {
-    private long version;
-
-    public NoSuchLogVersionException( long version )
+    public NoSuchTransactionException( long missingTxId )
     {
-        super( "No such log version:" + version );
-        this.version = version;
+        this( missingTxId, null );
     }
 
-    public long getVersion()
+    public NoSuchTransactionException( long missingTxId, String additionalInformation )
     {
-        return version;
+        super( combinedMessage( missingTxId, additionalInformation ) );
+    }
+
+    private static String combinedMessage( long missingTxId, String additionalInformation )
+    {
+        String result = "Unable to find transaction " + missingTxId + " in any of my logical logs";
+        if ( additionalInformation != null )
+            result += ": " + additionalInformation;
+        return result;
     }
 }

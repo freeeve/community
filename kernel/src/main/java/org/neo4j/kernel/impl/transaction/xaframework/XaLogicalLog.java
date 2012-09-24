@@ -987,8 +987,7 @@ public class XaLogicalLog implements LogLoader
             {
                 return Pair.of( extractor.getLastStartEntry().getMasterId(), extractor.getLastTxChecksum() );
             }
-            throw new RuntimeException( "Unable to find commit entry for txId[" + txId + "]" );// in log[" + version
-            // + "]" );
+            throw new NoSuchTransactionException( txId );
         }
         finally
         {
