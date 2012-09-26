@@ -797,7 +797,7 @@ public abstract class InternalAbstractGraphDatabase
         return tx().begin();
     }
 
-    Transaction beginTx( ForceMode forceMode )
+    protected Transaction beginTx( ForceMode forceMode )
     {
         if ( transactionRunning() )
         {
