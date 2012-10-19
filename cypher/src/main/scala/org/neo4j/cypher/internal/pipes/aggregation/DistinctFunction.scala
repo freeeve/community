@@ -23,12 +23,13 @@ import collection.Map
 import org.neo4j.cypher.internal.commands.expressions.Expression
 
 class DistinctFunction(value: Expression, inner: AggregationFunction) extends AggregationFunction {
-  val seen = scala.collection.mutable.Set[Any]()
+  val seen = scala.collection.mutable.LinkedHashSet[Any]()
   var seenNull = false
 
   def apply(m: Map[String, Any]) {
     val data = value(m)
 
+println("debug: "+value(m) + "; " + inner(m))
     if (data == null) {
       if (!seenNull) {
         seenNull = true

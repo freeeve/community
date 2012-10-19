@@ -22,7 +22,7 @@ package org.neo4j.cypher.internal.pipes
 import aggregation.AggregationFunction
 import org.neo4j.cypher.internal.symbols._
 import org.neo4j.cypher.internal.commands.expressions.{ParameterValue, Expression, AggregationExpression}
-import collection.mutable.{Map => MutableMap}
+import collection.mutable.{LinkedHashMap => MutableMap}
 
 // Eager aggregation means that this pipe will eagerly load the whole resulting sub graphs before starting
 // to emit aggregated results.

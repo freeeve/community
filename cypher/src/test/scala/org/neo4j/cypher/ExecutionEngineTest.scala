@@ -2265,4 +2265,34 @@ RETURN x0.name?
     assert(result.toList === List(Map("coll" -> List(refNode))))
   }
 
+  @Ignore
+  @Test
+  def where_has_prop_on_existing_relationship() {
+    val a = createNode()
+    val b = createNode()
+    val c = createNode()
+    relate(b, a, "ROAD", Map("distance" -> 50))
+    relate(b, c, "ROAD", Map("distance" -> 100))
+    val result = parseAndExecute("START a=node(2) match a-[r:ROAD]->b where r.distance < 75 return r.distance")
+
+    assert(result.toList === List(Map("r.distance" -> 50)))
+  }
+
+  @Test
+  def distinct_should_return_natural_order() {
+    val a = createNode(Map("x"->2))
+    val b = createNode(Map("x"->2))
+    val c = createNode(Map("x"->1))
+    val d = createNode(Map("x"->3))
+    val e = createNode(Map("x"->4))
+    val f = createNode(Map("x"->2))
+    val g = createNode(Map("x"->5))
+    val h = createNode(Map("x"->3))
+
+    val order = parseAndExecute("START n=node(*) where has(n.x) return n.x as x")
+    val result = parseAndExecute("START n=node(*) where has(n.x) return distinct n.x as x")
+    assert(order.toList === List(Map("x" -> 2), Map("x" -> 2), Map("x" -> 1), Map("x" -> 3), Map("x" -> 4), Map("x" -> 2), Map("x" -> 5), Map("x" -> 3)))
+    assert(result.toList === List(Map("x" -> 2), Map("x" -> 1), Map("x" -> 3), Map("x" -> 4), Map("x" -> 5)))
+  }
+
 }
