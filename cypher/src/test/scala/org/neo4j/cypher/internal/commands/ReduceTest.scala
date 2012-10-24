@@ -20,7 +20,7 @@
 package org.neo4j.cypher.internal.commands
 
 import expressions.{ReduceFunction, Identifier, LengthFunction, Add, Literal}
-import org.neo4j.cypher.internal.symbols.{SymbolTable, StringType, NumberType, AnyCollectionType}
+import org.neo4j.cypher.internal.symbols._
 import org.scalatest.Assertions
 import org.junit.Test
 import org.neo4j.cypher.internal.pipes.ExecutionContext
@@ -57,14 +57,34 @@ class ReduceTest extends Assertions {
     assert(typ === StringType())
   }
 
-  @Test def reduce_has_the_expected_type_number() {
+  @Test def reduce_has_the_expected_type_integer() {
     val expression = Add(Identifier("acc"), Identifier("n"))
     val collection = Literal(Seq(1,2,3))
 
     val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0))
     val typ = reduce.calculateType(new SymbolTable())
 
-    assert(typ === NumberType())
+    assert(typ === IntegerType())
+  }
+
+  @Test def reduce_has_the_expected_type_double() {
+    val expression = Add(Identifier("acc"), Identifier("n"))
+    val collection = Literal(Seq(1,2,3))
+
+    val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0.0))
+    val typ = reduce.calculateType(new SymbolTable())
+
+    assert(typ === DoubleType())
+  }
+
+  @Test def reduce_has_the_expected_type_double2() {
+    val expression = Add(Identifier("acc"), Identifier("n"))
+    val collection = Literal(Seq(1.0,2.2,3.1))
+
+    val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0))
+    val typ = reduce.calculateType(new SymbolTable())
+
+    assert(typ === DoubleType())
   }
 
   @Test def reduce_has_the_expected_type_array() { 

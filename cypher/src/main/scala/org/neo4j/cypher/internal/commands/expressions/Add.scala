@@ -33,16 +33,17 @@ case class Add(a: Expression, b: Expression) extends Expression {
     (aVal, bVal) match {
       case (null, _)                          => null
       case (_, null)                          => null
-  //    case (x: Int, y: Int)                   => x.intValue() + y.intValue()
-  //    case (x: Int, y: Double)                => x.intValue() + y.doubleValue()
-  //    case (x: Double, y: Int)                => x.doubleValue() + y.intValue()
-  //    case (x: Double, y: Double)             => x.doubleValue() + y.doubleValue()
+      case (x: Int, y: Int)                   => x + y
       case (x: Number, y: Number)             => x.doubleValue() + y.doubleValue()
       case (x: String, y: String)             => x + y
       case (IsCollection(x), IsCollection(y)) => x ++ y
       case (IsCollection(x), y)               => x ++ Seq(y)
       case (x, IsCollection(y))               => Seq(x) ++ y
+      case (x: String, y: Int)                => x + y.toString
+      case (x: String, y: Double)             => x + y.toString
       case (x: String, y: Number)             => x + y.toString
+      case (x: Int, y: String)                => x.toString + y
+      case (x: Double, y: String)             => x.toString + y
       case (x: Number, y: String)             => x.toString + y
       case _                                  => throw new CypherTypeException("Don't know how to add `" + aVal.toString + "` and `" + bVal.toString + "`")
     }
@@ -67,7 +68,11 @@ case class Add(a: Expression, b: Expression) extends Expression {
         case (x:DoubleType, y:IntegerType) => DoubleType()
         case (x:IntegerType, y:DoubleType) => DoubleType()
         case (x:DoubleType, y:DoubleType) => DoubleType()
+        case (x:StringType, y:IntegerType) => StringType()
+        case (x:StringType, y:DoubleType) => StringType()
         case (x:StringType, y:NumberType) => StringType()
+        case (x:IntegerType, y:StringType) => StringType()
+        case (x:DoubleType, y:StringType) => StringType()
         case (x:NumberType, y:StringType) => StringType()
         case _ => aT.mergeWith(bT)
       }

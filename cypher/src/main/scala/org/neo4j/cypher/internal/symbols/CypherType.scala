@@ -42,8 +42,15 @@ object CypherType {
     if (obj.isInstanceOf[String] || obj.isInstanceOf[Char])
       return StringType()
 
+    if (obj.isInstanceOf[Double])
+      return DoubleType()
+
+    if (obj.isInstanceOf[Int])
+      return IntegerType()
+
     if (obj.isInstanceOf[Number])
       return NumberType()
+
 
     if (obj.isInstanceOf[Boolean])
       return BooleanType()
