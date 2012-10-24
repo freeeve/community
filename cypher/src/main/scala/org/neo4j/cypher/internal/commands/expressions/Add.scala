@@ -33,6 +33,10 @@ case class Add(a: Expression, b: Expression) extends Expression {
     (aVal, bVal) match {
       case (null, _)                          => null
       case (_, null)                          => null
+  //    case (x: Int, y: Int)                   => x.intValue() + y.intValue()
+  //    case (x: Int, y: Double)                => x.intValue() + y.doubleValue()
+  //    case (x: Double, y: Int)                => x.doubleValue() + y.intValue()
+  //    case (x: Double, y: Double)             => x.doubleValue() + y.doubleValue()
       case (x: Number, y: Number)             => x.doubleValue() + y.doubleValue()
       case (x: String, y: String)             => x + y
       case (IsCollection(x), IsCollection(y)) => x ++ y
@@ -59,6 +63,10 @@ case class Add(a: Expression, b: Expression) extends Expression {
       case (true, false) => mergeWithCollection(collection = aT, singleElement = bT)
       case (false, true) => mergeWithCollection(collection = bT, singleElement = aT)
       case _ => (aT, bT) match {
+        case (x:IntegerType, y:IntegerType) => IntegerType()
+        case (x:DoubleType, y:IntegerType) => DoubleType()
+        case (x:IntegerType, y:DoubleType) => DoubleType()
+        case (x:DoubleType, y:DoubleType) => DoubleType()
         case (x:StringType, y:NumberType) => StringType()
         case (x:NumberType, y:StringType) => StringType()
         case _ => aT.mergeWith(bT)

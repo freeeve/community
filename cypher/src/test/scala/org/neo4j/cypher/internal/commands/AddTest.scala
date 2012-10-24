@@ -24,6 +24,7 @@ import org.junit.Test
 import org.scalatest.Assertions
 import org.neo4j.cypher.CypherTypeException
 import org.neo4j.cypher.internal.pipes.ExecutionContext
+import org.neo4j.cypher.internal.symbols._
 
 class AddTest extends Assertions {
   
@@ -57,5 +58,53 @@ class AddTest extends Assertions {
   @Test def numberPlusBool() {
     val expr = Add(Literal("1"), Literal(true))
     intercept[CypherTypeException](expr(m))
+  }
+
+  @Test def add_has_expected_type_double() {
+    val add = Add(Literal(1), Literal(2.5))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === DoubleType())
+  }
+  
+  @Test def add_has_expected_type_double2() {
+    val add = Add(Literal(1.5), Literal(2))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === DoubleType())
+  }
+
+  @Test def add_has_expected_type_double3() {
+    val add = Add(Literal(1.5), Literal(2.5))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === DoubleType())
+  }
+
+  @Test def add_has_expected_type_int() {
+    val add = Add(Literal(1), Literal(2))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === IntegerType())
+  }
+
+  @Test def add_has_expected_type_string() {
+    val add = Add(Literal("hello"), Literal(2))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === StringType())
+  }
+
+  @Test def add_has_expected_type_string2() {
+    val add = Add(Literal(2), Literal("hello"))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === StringType())
+  }
+  
+  @Test def add_has_expected_type_string3() {
+    val add = Add(Literal("hello"), Literal(2.5))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === StringType())
+  }
+
+  @Test def add_has_expected_type_string4() {
+    val add = Add(Literal(2.5), Literal("hello"))
+    val typ = add.calculateType(new SymbolTable())
+    assert(typ === StringType())
   }
 }
